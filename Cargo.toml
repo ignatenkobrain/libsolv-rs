@@ -1,0 +1,9 @@
+[package]
+name = "libsolv"
+version = "0.1.0"
+authors = ["Igor Gnatenko <ignatenko@redhat.com>"]
+
+[workspace]
+members = ["systest"]
+
+[dependencies]

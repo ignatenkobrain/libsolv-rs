@@ -1,0 +1,19 @@
+[package]
+name = "libsolv-sys"
+description = "Raw libsolv bindings for Rust, used internally rust-libsolv"
+repository = "https://github.com/ignatenkobrain/libsolv-rs"
+version = "0.0.1"
+authors = ["Igor Gnatenko <ignatenko@redhat.com>"]
+license = "MIT"
+build = "build.rs"
+
+[lib]
+name = "libsolv_sys"
+path = "src/lib.rs"
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+gcc = { version = "0.3", features = ["parallel"] }
+pkg-config = "0.3"
