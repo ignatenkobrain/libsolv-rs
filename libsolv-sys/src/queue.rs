@@ -1,4 +1,5 @@
 use libc::c_int;
+
 use libsolv::Id;
 
 #[repr(C)]
@@ -12,48 +13,93 @@ pub struct Queue {
 extern "C" {
     pub fn queue_init(q: *mut Queue);
     pub fn queue_init_buffer(q: *mut Queue, buf: *mut Id, size: c_int);
-    pub fn queue_init_clone(t: *mut Queue, s: *mut Queue); // FIXME: source is const?
+    pub fn queue_init_clone(t: *mut Queue, s: *mut Queue); // FIXME: source is const? - Yes
     pub fn queue_free(q: *mut Queue);
+
+    pub fn queue_alloc_one(q: *mut Queue); /* internal */
+    pub fn queue_alloc_one_head(q: *mut Queue); /* internal */
 
     pub fn queue_insert(q: *mut Queue, pos: c_int, id: Id);
     pub fn queue_insert2(q: *mut Queue, pos: c_int, id1: Id, id2: Id);
-    pub fn queue_insertn(q: *mut Queue, pos: c_int, n: c_int, elements: *mut Id); // FIXME: elements is const?
+    pub fn queue_insertn(q: *mut Queue, pos: c_int, n: c_int, elements: *mut Id); // FIXME: elements is const? - Yes.
     pub fn queue_delete(q: *mut Queue, pos: c_int);
     pub fn queue_delete2(q: *mut Queue, pos: c_int);
     pub fn queue_deleten(q: *mut Queue, pos: c_int, n: c_int);
     pub fn queue_prealloc(q: *mut Queue, n: c_int);
 
-    fn queue_empty_real(q: *mut Queue);
-    fn queue_shift_real(q: *mut Queue) -> Id;
-    fn queue_pop_real(q: *mut Queue) -> Id;
-    fn queue_unshift_real(q: *mut Queue, id: Id);
-    fn queue_push_real(q: *mut Queue, id: Id);
-    fn queue_pushunique_real(q: *mut Queue, id: Id);
-    fn queue_push2_real(q: *mut Queue, id1: Id, id2: Id);
-    fn queue_truncate_real(q: *mut Queue, n: c_int);
 }
 
-pub fn queue_empty(q: *mut Queue) {
-    unsafe { queue_empty_real(q) }
+pub unsafe fn queue_empty(q: *mut Queue) {
+    let ref mut queue = *q;
+    if !queue.alloc.is_null() {
+        queue.left += (queue.elements as usize - queue.alloc as usize) as c_int + queue.count;
+        queue.elements = queue.alloc;
+    } else {
+        queue.left += queue.count;
+    }
+    queue.count = 0;
 }
-pub fn queue_shift(q: *mut Queue) -> Id {
-    unsafe { queue_shift_real(q) }
+
+pub unsafe fn queue_shift(q: *mut Queue) -> Id {
+    let ref mut queue = *q;
+    match queue.count {
+        0 => 0,
+        _ => {
+            queue.count -= 1;
+            let element = *queue.elements;
+            queue.elements = queue.elements.offset(1);
+            element
+        }
+    }
 }
-pub fn queue_pop(q: *mut Queue) -> Id {
-    unsafe { queue_pop_real(q) }
+
+pub unsafe fn queue_pop(q: *mut Queue) -> Id {
+    let ref mut queue = *q;
+    match queue.count {
+        0 => 0,
+        _ => {
+            queue.left += 1;
+            queue.count -= 1;
+            *queue.elements.offset(queue.count as isize)
+        }
+    }
 }
-pub fn queue_unshift(q: *mut Queue, id: Id) {
-    unsafe { queue_unshift_real(q, id) }
+
+pub unsafe fn queue_unshift(q: *mut Queue, id: Id) {
+    let ref mut queue = *q;
+    if queue.alloc.is_null() || queue.alloc == queue.elements {
+        queue_alloc_one_head(q);
+    }
+    *queue.elements.offset(-1) = id;
+    queue.count += 1;
 }
-pub fn queue_push(q: *mut Queue, id: Id) {
-    unsafe { queue_push_real(q, id) }
+pub unsafe fn queue_push(q: *mut Queue, id: Id) {
+    let ref mut queue = *q;
+    if queue.left == 0 {
+        queue_alloc_one(q);
+    }
+    *queue.elements.offset(queue.count as isize) = id;
+    queue.count += 1;
+    queue.left -= 1;
 }
-pub fn queue_pushunique(q: *mut Queue, id: Id) {
-    unsafe { queue_pushunique_real(q, id) }
+pub unsafe fn queue_pushunique(q: *mut Queue, id: Id) {
+    let ref mut queue = *q;
+    for i in (0..queue.count).rev() {
+        if *queue.elements.offset(i as isize) == id {
+            return;
+        }
+        queue_push(q, id);
+    }
 }
-pub fn queue_push2(q: *mut Queue, id1: Id, id2: Id) {
-    unsafe { queue_push2_real(q, id1, id2) }
+pub unsafe fn queue_push2(q: *mut Queue, id1: Id, id2: Id) {
+    queue_push(q, id1);
+    queue_push(q, id2);
 }
-pub fn queue_truncate(q: *mut Queue, n: c_int) {
-    unsafe { queue_truncate_real(q, n) }
+
+pub unsafe fn queue_truncate(q: *mut Queue, n: c_int) {
+    let ref mut queue = *q;
+    if queue.count > n {
+        queue.left += queue.count - n;
+        queue.count = n;
+    }
 }
