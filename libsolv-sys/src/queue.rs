@@ -88,8 +88,8 @@ pub unsafe fn queue_pushunique(q: *mut Queue, id: Id) {
         if *queue.elements.offset(i as isize) == id {
             return;
         }
-        queue_push(q, id);
     }
+    queue_push(q, id);
 }
 pub unsafe fn queue_push2(q: *mut Queue, id1: Id, id2: Id) {
     queue_push(q, id1);
