@@ -51,7 +51,7 @@ impl fmt::Debug for Queue {
 extern "C" {
     pub fn queue_init(q: *mut Queue);
     pub fn queue_init_buffer(q: *mut Queue, buf: *mut Id, size: c_int);
-    pub fn queue_init_clone(t: *mut Queue, s: *const Queue); // FIXME: source is const? - Yes
+    pub fn queue_init_clone(t: *mut Queue, s: *mut Queue);
     pub fn queue_free(q: *mut Queue);
 
     pub fn queue_alloc_one(q: *mut Queue); /* internal */
@@ -59,7 +59,7 @@ extern "C" {
 
     pub fn queue_insert(q: *mut Queue, pos: c_int, id: Id);
     pub fn queue_insert2(q: *mut Queue, pos: c_int, id1: Id, id2: Id);
-    pub fn queue_insertn(q: *mut Queue, pos: c_int, n: c_int, elements: *mut Id); // FIXME: elements is const? - Yes.
+    pub fn queue_insertn(q: *mut Queue, pos: c_int, n: c_int, elements: *mut Id);
     pub fn queue_delete(q: *mut Queue, pos: c_int);
     pub fn queue_delete2(q: *mut Queue, pos: c_int);
     pub fn queue_deleten(q: *mut Queue, pos: c_int, n: c_int);
