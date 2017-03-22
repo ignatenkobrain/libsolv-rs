@@ -1,5 +1,5 @@
 use libc::c_int;
-
+use std::{slice, ptr, fmt};
 use libsolv::Id;
 
 #[repr(C)]
@@ -10,10 +10,29 @@ pub struct Queue {
     pub left: c_int,
 }
 
+impl Default for Queue {
+    fn default() -> Self {
+        Queue{elements: ptr::null_mut(), count: 0, alloc: ptr::null_mut(), left: 0}
+    }
+}
+
+impl AsRef<[i32]> for Queue {
+    fn as_ref(&self) -> &[i32] {
+        unsafe {slice::from_raw_parts(self.elements, self.count as usize)}
+    }
+}
+
+impl fmt::Debug for Queue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Queue {{ elements: {:?} }}", self.as_ref())
+    }
+}
+
+
 extern "C" {
     pub fn queue_init(q: *mut Queue);
     pub fn queue_init_buffer(q: *mut Queue, buf: *mut Id, size: c_int);
-    pub fn queue_init_clone(t: *mut Queue, s: *mut Queue); // FIXME: source is const? - Yes
+    pub fn queue_init_clone(t: *mut Queue, s: *const Queue); // FIXME: source is const? - Yes
     pub fn queue_free(q: *mut Queue);
 
     pub fn queue_alloc_one(q: *mut Queue); /* internal */
@@ -101,5 +120,30 @@ pub unsafe fn queue_truncate(q: *mut Queue, n: c_int) {
     if queue.count > n {
         queue.left += queue.count - n;
         queue.count = n;
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use queue::*;
+
+    #[test]
+    fn init_and_free() {
+        let mut queue: Queue = Default::default();
+        unsafe {
+            queue_init(&mut queue);
+            queue_insert2(&mut queue, 0, 1, 2);
+            assert!(!queue.elements.is_null());
+            assert!(!queue.alloc.is_null());
+
+            assert_eq!(2, queue_pop(&mut queue));
+            assert_eq!(1, queue_pop(&mut queue));
+
+            queue_free(&mut queue);
+            assert!(queue.elements.is_null());
+            assert!(queue.alloc.is_null());
+
+        }
     }
 }
