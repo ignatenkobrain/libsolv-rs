@@ -1,5 +1,5 @@
 use libc::c_int;
-use std::{slice, ptr, fmt};
+use std::{slice, ptr, fmt, mem};
 use libsolv::Id;
 
 #[repr(C)]
@@ -12,7 +12,15 @@ pub struct Queue {
 
 impl Default for Queue {
     fn default() -> Self {
-        Queue{elements: ptr::null_mut(), count: 0, alloc: ptr::null_mut(), left: 0}
+        let mut queue = Queue{elements: ptr::null_mut(), count: 0, alloc: ptr::null_mut(), left: 0};
+        unsafe {queue_init(&mut queue)};
+        queue
+    }
+}
+
+impl Drop for Queue {
+    fn drop(&mut self) {
+        unsafe {queue_free(self)}
     }
 }
 
@@ -22,9 +30,20 @@ impl AsRef<[i32]> for Queue {
     }
 }
 
+impl AsMut<[i32]> for Queue {
+    fn as_mut(&mut self) -> &mut [i32] {
+        unsafe {slice::from_raw_parts_mut(self.elements, self.count as usize)}
+    }
+}
+
 impl fmt::Debug for Queue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Queue {{ elements: {:?} }}", self.as_ref())
+        write!(f, "Queue {{ elements: {:?}, elements_ptr: {:?}, count: {:?}, alloc_ptr: {:?}, left: {}}}",
+               self.as_ref(),
+               self.elements,
+               self.count,
+               self.alloc,
+               self.left)
     }
 }
 
@@ -51,7 +70,8 @@ extern "C" {
 pub unsafe fn queue_empty(q: *mut Queue) {
     let ref mut queue = *q;
     if !queue.alloc.is_null() {
-        queue.left += (queue.elements as usize - queue.alloc as usize) as c_int + queue.count;
+        let unused = (queue.elements as usize - queue.alloc as usize) as c_int / mem::size_of::<Id>() as i32;
+        queue.left += unused + queue.count;
         queue.elements = queue.alloc;
     } else {
         queue.left += queue.count;
@@ -89,7 +109,8 @@ pub unsafe fn queue_unshift(q: *mut Queue, id: Id) {
     if queue.alloc.is_null() || queue.alloc == queue.elements {
         queue_alloc_one_head(q);
     }
-    *queue.elements.offset(-1) = id;
+    queue.elements = queue.elements.offset(-1);
+    *queue.elements = id;
     queue.count += 1;
 }
 pub unsafe fn queue_push(q: *mut Queue, id: Id) {
@@ -137,10 +158,18 @@ mod tests {
             assert!(!queue.elements.is_null());
             assert!(!queue.alloc.is_null());
 
-            assert_eq!(2, queue_pop(&mut queue));
-            assert_eq!(1, queue_pop(&mut queue));
+            println!("start: {:?}", queue);
+
+            assert_eq!(1, queue_shift(&mut queue));
+            println!("shift: {:?}", queue);
+            queue_empty(&mut queue);
+
+            println!("empty: {:?}", queue);
 
             queue_free(&mut queue);
+
+            println!("free: {:?}", queue);
+
             assert!(queue.elements.is_null());
             assert!(queue.alloc.is_null());
 
