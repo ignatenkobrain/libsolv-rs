@@ -1,5 +1,5 @@
 use libc::c_int;
-use std::{slice, ptr, fmt, mem};
+use std::{slice, fmt, mem};
 use libsolv::Id;
 
 #[repr(C)]
@@ -12,8 +12,11 @@ pub struct Queue {
 
 impl Default for Queue {
     fn default() -> Self {
-        let mut queue = Queue{elements: ptr::null_mut(), count: 0, alloc: ptr::null_mut(), left: 0};
-        unsafe {queue_init(&mut queue)};
+        let mut queue;
+        unsafe {
+            queue = mem::uninitialized();
+            queue_init(&mut queue);
+        }
         queue
     }
 }
