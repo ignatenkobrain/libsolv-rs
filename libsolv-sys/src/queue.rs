@@ -73,7 +73,7 @@ extern "C" {
 pub unsafe fn queue_empty(q: *mut Queue) {
     let ref mut queue = *q;
     if !queue.alloc.is_null() {
-        let unused = (queue.elements as usize - queue.alloc as usize) as c_int / mem::size_of::<Id>() as i32;
+        let unused = (queue.elements as usize - queue.alloc as usize) as c_int / mem::size_of::<Id>() as c_int;
         queue.left += unused + queue.count;
         queue.elements = queue.alloc;
     } else {
