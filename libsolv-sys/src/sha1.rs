@@ -5,6 +5,29 @@ pub struct SHA1_CTX {
     pub buffer: [u8; 64],
 }
 
+#[test]
+fn bindgen_test_layout_SHA1_CTX() {
+    assert_eq!(::std::mem::size_of::<SHA1_CTX>() , 92usize , concat ! (
+               "Size of: " , stringify ! ( SHA1_CTX ) ));
+    assert_eq! (::std::mem::align_of::<SHA1_CTX>() , 4usize , concat ! (
+                "Alignment of " , stringify ! ( SHA1_CTX ) ));
+    assert_eq! (unsafe {
+        & ( * ( 0 as * const SHA1_CTX ) ) . state as * const _ as
+            usize } , 0usize , concat ! (
+                "Alignment of field: " , stringify ! ( SHA1_CTX ) , "::" ,
+                stringify ! ( state ) ));
+    assert_eq! (unsafe {
+        & ( * ( 0 as * const SHA1_CTX ) ) . count as * const _ as
+            usize } , 20usize , concat ! (
+                "Alignment of field: " , stringify ! ( SHA1_CTX ) , "::" ,
+                stringify ! ( count ) ));
+    assert_eq! (unsafe {
+        & ( * ( 0 as * const SHA1_CTX ) ) . buffer as * const _ as
+            usize } , 28usize , concat ! (
+                "Alignment of field: " , stringify ! ( SHA1_CTX ) , "::" ,
+                stringify ! ( buffer ) ));
+}
+
 pub const SHA1_DIGEST_SIZE:usize = 20;
 
 extern "C" {

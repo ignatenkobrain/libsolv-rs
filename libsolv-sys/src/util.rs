@@ -1,3 +1,5 @@
+use std::ptr;
+use libc;
 use libc::{c_void, c_char, c_uchar, c_uint, c_int};
 
 extern "C" {
@@ -47,4 +49,62 @@ extern "C" {
     pub fn solv_replacebadutf8(buf: *const c_char,
                                replchar: c_int)
                                -> *mut c_char;
+}
+
+pub unsafe fn solv_extend(mut buf: *mut c_void, len: usize, nmemb: usize, size: usize, block: usize) -> *mut c_void {
+    if nmemb == 1 {
+        if (len & block) == 0 {
+            buf = solv_extend_realloc(buf, len + 1, size, block);
+        }
+    } else {
+        if ((len - 1) | block) != ((len + nmemb - 1) | block) {
+            buf = solv_extend_realloc(buf, len + nmemb, size, block);
+        }
+    }
+    buf
+}
+
+pub unsafe fn solv_zextend(mut buf: *mut c_void, len: usize, nmemb: usize, size: usize, block: usize) -> *mut c_void {
+    buf = solv_extend(buf, len, nmemb, size, block);
+    libc::memset((buf as usize + len * size) as *mut c_void, 0, nmemb * size);
+    buf
+
+}
+
+pub unsafe fn solv_extend_resize(mut buf: *mut c_void, len: usize, size: usize, block: usize) -> *mut c_void {
+    if len != 0 {
+        buf = solv_extend_realloc(buf, len, size, block);
+    }
+    buf
+}
+
+pub unsafe fn solv_calloc_block(len: usize, size: usize, block: usize) -> *mut c_void {
+    let mut buf = ptr::null_mut();
+    if len != 0 {
+        buf = solv_extend_realloc(buf, len, size, block);
+        libc::memset(buf, 0, ((len + block) & !block) * size);
+    }
+    buf
+}
+
+pub unsafe fn solv_memdup(buf: *mut c_void, len: usize) -> *mut c_void {
+    if buf.is_null() {
+        return ptr::null_mut();
+    }
+    let newbuf = solv_malloc(len);
+    if len != 0 {
+        libc::memcpy(newbuf, buf, len);
+    }
+    newbuf
+}
+
+pub unsafe fn solv_memdup2(buf: *mut c_void, num: usize, len: usize) -> *mut c_void {
+    if buf.is_null() {
+        return ptr::null_mut();
+    }
+    let newbuf = solv_malloc2(num, len);
+    if num != 0 {
+        libc::memcpy(newbuf, buf, num * len);
+    }
+    newbuf
 }

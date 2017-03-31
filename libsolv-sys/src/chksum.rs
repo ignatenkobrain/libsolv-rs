@@ -1,27 +1,9 @@
 use libsolv::Id;
 use libc::{c_int, c_uchar, c_char, c_void};
-use ::md5::MD5_CTX;
-use ::sha1::SHA1_CTX;
-use ::sha2::{SHA224_CTX, SHA256_CTX, SHA384_CTX, SHA512_CTX};
 
+// Opaque pointer
 #[repr(C)]
-pub union ContextUnion {
-    pub md5: MD5_CTX,
-    pub sha1: SHA1_CTX,
-    pub sha224: SHA224_CTX,
-    pub sha256: SHA256_CTX,
-    pub sha384: SHA384_CTX,
-    pub sha512: SHA512_CTX,
-}
-
-
-#[repr(C)]
-pub struct Chksum {
-    pub type_: Id,
-    pub done: c_int,
-    pub result: [c_uchar; 64],
-    pub c: ContextUnion,
-}
+pub struct Chksum([u8; 0]);
 
 extern "C" {
     pub fn solv_chksum_create(type_: Id) -> *mut Chksum;

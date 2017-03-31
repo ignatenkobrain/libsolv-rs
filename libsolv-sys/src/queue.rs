@@ -10,6 +10,34 @@ pub struct Queue {
     pub left: c_int,
 }
 
+#[test]
+fn bindgen_test_layout_Queue() {
+    assert_eq!(::core::mem::size_of::<Queue>() , 32usize , concat ! (
+               "Size of: " , stringify ! ( Queue ) ));
+    assert_eq! (::core::mem::align_of::<Queue>() , 8usize , concat ! (
+                "Alignment of " , stringify ! ( Queue ) ));
+    assert_eq! (unsafe {
+        & ( * ( 0 as * const Queue ) ) . elements as * const _ as
+            usize } , 0usize , concat ! (
+                "Alignment of field: " , stringify ! ( Queue ) , "::" ,
+                stringify ! ( elements ) ));
+    assert_eq! (unsafe {
+        & ( * ( 0 as * const Queue ) ) . count as * const _ as usize
+    } , 8usize , concat ! (
+                "Alignment of field: " , stringify ! ( Queue ) , "::" ,
+                stringify ! ( count ) ));
+    assert_eq! (unsafe {
+        & ( * ( 0 as * const Queue ) ) . alloc as * const _ as usize
+    } , 16usize , concat ! (
+                "Alignment of field: " , stringify ! ( Queue ) , "::" ,
+                stringify ! ( alloc ) ));
+    assert_eq! (unsafe {
+        & ( * ( 0 as * const Queue ) ) . left as * const _ as usize }
+    , 24usize , concat ! (
+                "Alignment of field: " , stringify ! ( Queue ) , "::" ,
+                stringify ! ( left ) ));
+}
+
 impl Default for Queue {
     fn default() -> Self {
         let mut queue;
