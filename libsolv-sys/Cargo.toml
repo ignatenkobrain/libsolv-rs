@@ -17,3 +17,4 @@ libc = "0.2"
 [build-dependencies]
 gcc = { version = "0.3", features = ["parallel"] }
 pkg-config = "0.3"
+bindgen = "0.26"
