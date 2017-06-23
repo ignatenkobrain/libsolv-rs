@@ -7,15 +7,14 @@ use std::path::PathBuf;
 
 
 fn main() {
-
+    gcc::Config::new()
+        .file("static/queue.c")
+        .static_flag(true)
+        .compile("libsolv-static-functions.a");
 
     println!("cargo:rustc-link-lib=solv");
     println!("cargo:rustc-link-lib=solvext");
 
-
-    gcc::compile_library("libsolv-static-functions.a", &["static-functions.c"]);
-
-    //pkg_config::probe_library("libsolv").unwrap();
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
