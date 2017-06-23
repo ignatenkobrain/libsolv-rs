@@ -12,7 +12,10 @@ fn main() {
         .file("static/bitmap.c")
         .file("static/dirpool.c")
         .file("static/pool.c")
-        .static_flag(true)
+        .file("static/poolarch.c")
+        .file("static/repo.c")
+        .file("static/repodata.c")
+        .file("static/strpool.c")
         .compile("libsolv-static-functions.a");
 
     println!("cargo:rustc-link-lib=solv");
