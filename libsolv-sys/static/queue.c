@@ -1,45 +1,42 @@
 #include <solv/queue.h>
 
-// Queue
 void
-queue_empty_static(Queue *q)
+e_queue_empty(Queue *q)
 {
   queue_empty(q);
 }
 Id
-queue_shift_static(Queue *q)
+e_queue_shift(Queue *q)
 {
   return queue_shift(q);
 }
-
 Id
-queue_pop_static(Queue *q)
+e_queue_pop(Queue *q)
 {
   return queue_pop(q);
 }
 void
-queue_unshift_static(Queue *q, Id id)
+e_queue_unshift(Queue *q, Id id)
 {
   queue_unshift(q, id);
 }
 void
-queue_push_static(Queue *q, Id id)
+e_queue_push(Queue *q, Id id)
 {
   queue_push(q, id);
 }
 void
-queue_pushunique_static(Queue *q, Id id)
+e_queue_pushunique(Queue *q, Id id)
 {
   queue_pushunique(q, id);
 }
 void
-queue_push2_static(Queue *q, Id id1, Id id2)
+e_queue_push2(Queue *q, Id id1, Id id2)
 {
   queue_push2(q, id1, id2);
 }
-
 void
-queue_truncate_static(Queue *q, int n)
+e_queue_truncate(Queue *q, int n)
 {
   queue_truncate(q, n);
 }

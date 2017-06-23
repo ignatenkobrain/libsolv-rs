@@ -9,6 +9,9 @@ use std::path::PathBuf;
 fn main() {
     gcc::Config::new()
         .file("static/queue.c")
+        .file("static/bitmap.c")
+        .file("static/dirpool.c")
+        .file("static/pool.c")
         .static_flag(true)
         .compile("libsolv-static-functions.a");
 
@@ -39,6 +42,7 @@ fn main() {
         .whitelisted_function("dirpool.*")
         .whitelisted_function("datamatcher.*")
         .whitelisted_function("dataiterator.*")
+        .whitelisted_function("map.*")
         .whitelisted_function("testcase.*")
         .whitelisted_var("SOLVER.*")
         .whitelisted_var("SEARCH.*")

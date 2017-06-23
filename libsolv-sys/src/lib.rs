@@ -4,8 +4,6 @@
 
 extern crate libc;
 
-pub mod queue;
-
-pub use queue::*;
+pub mod export;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));

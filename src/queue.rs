@@ -30,8 +30,8 @@ impl Queue {
     }
 
     pub fn push2(&mut self, id1: Id, id2: Id) {
-        use libsolv_sys::queue::queue_push2;
-        unsafe {queue_push2(&mut self._q, id1, id2)};
+        use libsolv_sys::queue::queue_push2_static;
+        unsafe {queue_push2_static(&mut self._q, id1, id2)};
     }
 }
 
