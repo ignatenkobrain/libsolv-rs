@@ -4,7 +4,7 @@ use libc::c_int;
 use std::{slice, fmt, mem};
 
 pub struct Queue {
-    _q: _Queue,
+    pub(crate) _q: _Queue,
 }
 
 impl Queue {
@@ -19,6 +19,48 @@ impl Queue {
         Queue{ _q: internal}
     }
 
+    pub fn clear(&mut self) {
+        use libsolv_sys::export::queue::e_queue_empty;
+        unsafe{e_queue_empty(&mut self._q)};
+    }
+    pub fn len(&self) -> c_int {
+        self._q.count
+    }
+
+    pub fn shift(&mut self) -> Id {
+        use libsolv_sys::export::queue::e_queue_shift;
+        unsafe{e_queue_shift(&mut self._q)}
+    }
+
+    pub fn pop(&mut self) -> Id {
+        use libsolv_sys::export::queue::e_queue_pop;
+        unsafe{e_queue_pop(&mut self._q)}
+    }
+
+    pub fn unshift(&mut self, id: Id) {
+        use libsolv_sys::export::queue::e_queue_unshift;
+        unsafe{e_queue_unshift(&mut self._q, id)}
+    }
+
+    pub fn push(&mut self, id: Id) {
+        use libsolv_sys::export::queue::e_queue_push;
+        unsafe{e_queue_push(&mut self._q, id)}
+    }
+    pub fn pushunique(&mut self, id1: Id) {
+        use libsolv_sys::export::queue::e_queue_pushunique;
+        unsafe {e_queue_pushunique(&mut self._q, id1)};
+    }
+
+    pub fn push2(&mut self, id1: Id, id2: Id) {
+        use libsolv_sys::export::queue::e_queue_push2;
+        unsafe {e_queue_push2(&mut self._q, id1, id2)};
+    }
+
+    pub fn truncate(&mut self, n: c_int) {
+        use libsolv_sys::export::queue::e_queue_truncate;
+        unsafe {e_queue_truncate(&mut self._q, n)};
+    }
+
     pub fn insert(&mut self, pos: c_int, id: Id) {
         use libsolv_sys::queue_insert;
         unsafe {queue_insert(&mut self._q, pos, id)};
@@ -29,9 +71,25 @@ impl Queue {
         unsafe {queue_insert2(&mut self._q, pos, id1, id2)};
     }
 
-    pub fn push2(&mut self, id1: Id, id2: Id) {
-        use libsolv_sys::queue::queue_push2_static;
-        unsafe {queue_push2_static(&mut self._q, id1, id2)};
+    pub fn insertn(&mut self, pos: c_int, elements: &mut [Id]) {
+        use libsolv_sys::queue_insertn;
+        let n = elements.len() as c_int;
+        unsafe {queue_insertn(&mut self._q, pos, n, elements.as_mut_ptr())}
+    }
+
+    pub fn delete(&mut self, pos: c_int) {
+        use libsolv_sys::queue_delete;
+        unsafe {queue_delete(&mut self._q, pos)};
+    }
+
+    pub fn delete2(&mut self, pos: c_int) {
+        use libsolv_sys::queue_delete2;
+        unsafe {queue_delete2(&mut self._q, pos)};
+    }
+
+    pub fn deleten(&mut self, pos: c_int, n: c_int) {
+        use libsolv_sys::queue_deleten;
+        unsafe {queue_deleten(&mut self._q, pos, n)}
     }
 }
 
@@ -80,29 +138,16 @@ mod tests {
     fn init_and_free() {
         let mut queue: Queue = Default::default();
         queue.push2(1, 2);
+        println!("start: {:?}", queue);
+
         assert!(!queue._q.elements.is_null());
         assert!(!queue._q.alloc.is_null());
-        /*
-        unsafe {
-            queue_init(&mut queue);
-            queue_insert2(&mut queue, 0, 1, 2);
 
+        assert_eq!(1, queue.shift());
+        println!("shift: {:?}", queue);
 
-            println!("start: {:?}", queue);
+        queue.clear();
+        println!("empty: {:?}", queue);
 
-            assert_eq!(1, queue_shift(&mut queue));
-            println!("shift: {:?}", queue);
-            queue_empty(&mut queue);
-
-            println!("empty: {:?}", queue);
-
-            queue_free(&mut queue);
-
-            println!("free: {:?}", queue);
-
-            assert!(queue._q.elements.is_null());
-            assert!(queue._q.alloc.is_null());
-
-        }*/
     }
 }

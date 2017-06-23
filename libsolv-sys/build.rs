@@ -29,6 +29,7 @@ fn main() {
         // The input header we would like to generate
         // bindings for.
         .header("wrapper.h")
+
         // Finish the builder and generate the bindings.
         .ctypes_prefix("libc")
         .whitelisted_type("Solver")
@@ -51,6 +52,8 @@ fn main() {
         .whitelisted_var("SEARCH.*")
         .whitelisted_var("EVRCMP.*")
         .whitelisted_var("TESTCASE.*")
+        .hide_type("FILE")
+        .raw_line("use libc::FILE;")
 
         .generate()
         // Unwrap the Result and panic on failure.
