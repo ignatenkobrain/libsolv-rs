@@ -1,11 +1,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use ::pool::PoolContext;
+use ::queue::Queue;
 use libsolv_sys::Solver as _Solver;
+use libc;
 
 pub struct Solver {
-    ctx: Rc<RefCell<PoolContext>>,
-    _s: *mut _Solver,
+    pub(crate) ctx: Rc<RefCell<PoolContext>>,
+    pub(crate) _s: *mut _Solver,
 }
 
 impl Solver {
@@ -20,6 +22,12 @@ impl Solver {
 
     pub(crate) fn new_with_solver(ctx: Rc<RefCell<PoolContext>>, _s: *mut _Solver) -> Self {
         Solver{ctx: ctx, _s: _s}
+    }
+
+    pub fn solve(&mut self, job: &mut Queue) -> libc::c_int {
+        use libsolv_sys::solver_solve;
+        let borrow = self.ctx.borrow_mut();
+        unsafe{solver_solve(self._s, &mut job._q)}
     }
 
 }

@@ -1,12 +1,13 @@
 extern crate libc;
 extern crate libsolv_sys;
 
-mod queue;
-mod pool;
-mod repo;
-mod solver;
-mod transaction;
-mod ext;
+pub mod queue;
+pub mod pool;
+pub mod repo;
+pub mod solver;
+pub mod transaction;
+pub mod ext;
+mod ownership;
 
 #[cfg(test)]
 mod tests {
