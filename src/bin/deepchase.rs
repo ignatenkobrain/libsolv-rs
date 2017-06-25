@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::cell::{RefCell, Ref, RefMut};
 use std::collections::HashMap;
 use clap::App;
-use libsolv::pool::Pool;
+use libsolv::pool::PoolContext;
 
 
 struct BaseRepo {

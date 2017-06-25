@@ -1,16 +1,16 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ffi::CString;
-use ::pool::PoolContext;
+use ::pool::Pool;
 use libsolv_sys::Repo as _Repo;
 
 pub struct Repo {
-    ctx: Rc<RefCell<PoolContext>>,
+    ctx: Rc<RefCell<Pool>>,
     _r: *mut _Repo,
 }
 
 impl Repo {
-    pub(crate) fn new_with_context(ctx: Rc<RefCell<PoolContext>>, name: &CString) -> Self {
+    pub(crate) fn new_with_context(ctx: Rc<RefCell<Pool>>, name: &CString) -> Self {
         use libsolv_sys::repo_create;
         let _r = {
             let borrow = ctx.borrow_mut();

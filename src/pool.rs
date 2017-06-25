@@ -7,13 +7,13 @@ use std::ffi::CString;
 use ::transaction::Transaction;
 
 
-pub struct Pool {
-    pool: Rc<RefCell<PoolContext>>,
+pub struct PoolContext {
+    pool: Rc<RefCell<Pool>>,
 }
 
-impl Pool {
+impl PoolContext {
     pub fn new() -> Self {
-        Pool {pool: Rc::new(RefCell::new(PoolContext::new()))}
+        PoolContext {pool: Rc::new(RefCell::new(Pool::new()))}
     }
 
     pub fn create_solver(&self) -> Solver {
@@ -28,39 +28,39 @@ impl Pool {
         Repo::new_with_context(self.pool.clone(), name)
     }
 
-    pub fn clone_context(&self) -> Rc<RefCell<PoolContext>> {
+    pub fn clone_context(&self) -> Rc<RefCell<Pool>> {
         self.pool.clone()
     }
 
-    pub fn borrow_context(&self) -> Ref<PoolContext> {
+    pub fn borrow(&self) -> Ref<Pool> {
         self.pool.borrow()
     }
 
-    pub fn borrow_context_mut(&self) -> RefMut<PoolContext> {
+    pub fn borrow_mut(&self) -> RefMut<Pool> {
         self.pool.borrow_mut()
     }
 
-    pub fn set_arch(&self, arch: &str) {
+    pub fn set_arch(&self, arch: &str) { ;
         use libsolv_sys::pool_setarch;
-        let borrow = self.borrow_context_mut();
+        let borrow = self.borrow_mut();
         let string = CString::new(arch).unwrap();
         unsafe {pool_setarch(borrow._p, string.as_ptr())};
     }
 }
 
 
-pub struct PoolContext {
+pub struct Pool {
     pub _p: *mut _Pool,
 }
 
-impl PoolContext {
-    fn new() -> PoolContext {
+impl Pool {
+    fn new() -> Pool {
         use libsolv_sys::pool_create;
-        PoolContext { _p: unsafe {pool_create()} }
+        Pool { _p: unsafe {pool_create()} }
     }
 }
 
-impl Drop for PoolContext {
+impl Drop for Pool {
     fn drop(&mut self) {
         use libsolv_sys::pool_free;
         unsafe { pool_free(self._p)}

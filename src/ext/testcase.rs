@@ -3,7 +3,7 @@ use std::path::Path;
 use ::solver::Solver;
 use libsolv_sys::Solver as _Solver;
 use libsolv_sys::solv_free;
-use ::pool::Pool;
+use ::pool::PoolContext;
 use ::queue::Queue;
 use std::ptr;
 use std::ffi::CString;
@@ -13,7 +13,7 @@ use libc;
 
 
 
-pub fn read<P: AsRef<Path>>(pool: &Pool, path: P, job: &mut Queue) -> Result<(Solver, CString, c_int)> {
+pub fn read<P: AsRef<Path>>(pool: &PoolContext, path: P, job: &mut Queue) -> Result<(Solver, CString, c_int)> {
     use libsolv_sys::testcase_read;
 
     let fp: *mut FILE = ptr::null_mut();
@@ -22,7 +22,7 @@ pub fn read<P: AsRef<Path>>(pool: &Pool, path: P, job: &mut Queue) -> Result<(So
     // TODO: fix unwraps
     let testcase = CString::new(path.as_ref().to_str().unwrap()).unwrap();
     let solver: *mut _Solver = {
-        let borrow = pool.borrow_context_mut();
+        let borrow = pool.borrow_mut();
         unsafe {testcase_read(borrow._p, fp, testcase.as_ptr(), &mut job._q, &mut resultp, &mut resultflagsp)}
     };
 

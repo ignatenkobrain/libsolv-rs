@@ -1,15 +1,15 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use ::pool::PoolContext;
+use ::pool::Pool;
 use libsolv_sys::Transaction as _Transaction;
 
 pub struct Transaction {
-    ctx: Rc<RefCell<PoolContext>>,
+    ctx: Rc<RefCell<Pool>>,
     _t: *mut _Transaction,
 }
 
 impl Transaction {
-    pub(crate) fn new_with_context(ctx: Rc<RefCell<PoolContext>>) -> Self {
+    pub(crate) fn new_with_context(ctx: Rc<RefCell<Pool>>) -> Self {
         use libsolv_sys::transaction_create;
         let _t = {
             let borrow = ctx.borrow_mut();
