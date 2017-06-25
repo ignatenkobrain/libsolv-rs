@@ -39,6 +39,13 @@ impl Pool {
     pub fn borrow_context_mut(&self) -> RefMut<PoolContext> {
         self.pool.borrow_mut()
     }
+
+    pub fn set_arch(&self, arch: &str) {
+        use libsolv_sys::pool_setarch;
+        let borrow = self.borrow_context_mut();
+        let string = CString::new(arch).unwrap();
+        unsafe {pool_setarch(borrow._p, string.as_ptr())};
+    }
 }
 
 

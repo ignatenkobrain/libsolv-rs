@@ -9,3 +9,4 @@ members = ["systest"]
 [dependencies]
 libsolv-sys = { path = "libsolv-sys" }
 libc = "0.2"
+clap = "2"
