@@ -7,6 +7,7 @@ pub mod repo;
 pub mod solver;
 pub mod transaction;
 pub mod ext;
+pub mod chksum;
 mod ownership;
 
 #[cfg(test)]

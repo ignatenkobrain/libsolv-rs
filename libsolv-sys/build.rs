@@ -33,6 +33,8 @@ fn main() {
         // Finish the builder and generate the bindings.
         .ctypes_prefix("libc")
         .whitelisted_type("Solver")
+        .whitelisted_type("Chksum")
+        .whitelisted_type("solv.*")
         .whitelisted_function("pool.*")
         .whitelisted_function("stringpool.*")
         .whitelisted_function("transaction.*")
@@ -49,6 +51,7 @@ fn main() {
         .whitelisted_function("map.*")
         .whitelisted_function("testcase.*")
         .whitelisted_var("SOLVER.*")
+        .whitelisted_var("REPOKEY.*")
         .whitelisted_var("SEARCH.*")
         .whitelisted_var("EVRCMP.*")
         .whitelisted_var("TESTCASE.*")

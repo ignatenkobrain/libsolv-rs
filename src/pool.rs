@@ -40,12 +40,6 @@ impl PoolContext {
         self.pool.borrow_mut()
     }
 
-    pub fn set_arch(&self, arch: &str) { ;
-        use libsolv_sys::pool_setarch;
-        let borrow = self.borrow_mut();
-        let string = CString::new(arch).unwrap();
-        unsafe {pool_setarch(borrow._p, string.as_ptr())};
-    }
 }
 
 
@@ -57,6 +51,12 @@ impl Pool {
     fn new() -> Pool {
         use libsolv_sys::pool_create;
         Pool { _p: unsafe {pool_create()} }
+    }
+
+    pub fn set_arch(&mut self, arch: &str) { ;
+        use libsolv_sys::pool_setarch;
+        let string = CString::new(arch).unwrap();
+        unsafe {pool_setarch(self._p, string.as_ptr())};
     }
 }
 
