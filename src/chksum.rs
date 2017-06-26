@@ -4,6 +4,7 @@ use libsolv_sys::Id;
 use std::ptr;
 use std::mem;
 use libsolv_sys::solv_knownid;
+use std::slice;
 use libc;
 
 pub struct Chksum {
@@ -84,13 +85,20 @@ impl Chksum {
             }
         };
         unsafe {
-            solv_chksum_add(self._c, &stb.st_dev as *const i32 as *const libc::c_void, mem::size_of_val(&stb.st_dev) as i32);
-            solv_chksum_add(self._c, &stb.st_ino as *const u64 as *const libc::c_void, mem::size_of_val(&stb.st_ino) as i32);
-            solv_chksum_add(self._c, &stb.st_size as *const i64 as *const libc::c_void, mem::size_of_val(&stb.st_size) as i32);
-            solv_chksum_add(self._c, &stb.st_mtime as *const i64 as *const libc::c_void, mem::size_of_val(&stb.st_mtime) as i32);
+            solv_chksum_add(self._c, &stb.st_dev as *const libc::dev_t as *const libc::c_void, mem::size_of::<libc::dev_t>() as i32);
+            solv_chksum_add(self._c, &stb.st_ino as *const libc::ino_t as *const libc::c_void, mem::size_of::<libc::ino_t>() as i32);
+            solv_chksum_add(self._c, &stb.st_size as *const libc::off_t as *const libc::c_void, mem::size_of::<libc::off_t>() as i32);
+            solv_chksum_add(self._c, &stb.st_mtime as *const libc::time_t as *const libc::c_void, mem::size_of::<libc::time_t>() as i32);
         }
+    }
 
-
+    pub fn raw(&mut self) -> &[u8] {
+        use libsolv_sys::solv_chksum_get;
+        let mut l = 0;
+        unsafe {
+            let ptr = solv_chksum_get(self._c, &mut l);
+            slice::from_raw_parts(ptr, l as usize)
+        }
     }
 
 }
