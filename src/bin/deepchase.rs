@@ -11,9 +11,12 @@ use std::collections::HashMap;
 use clap::App;
 use libsolv::pool::PoolContext;
 use libsolv::repo::Repo;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::fs::File;
 use std::ffi::CString;
 use std::ptr;
+use std::io::{Cursor, Read};
+use libsolv::chksum::Chksum;
 
 struct BaseRepo {
     name: String,
@@ -26,14 +29,26 @@ impl BaseRepo {
         let name = name.into();
         let base_url = base_url.into();
 
+        let mut path = PathBuf::from(&base_url);
+        path.push("repodata/repomd.xml");
+        let mut repomd = File::open(&path);
+
         BaseRepo{name: name, base_url: base_url}
     }
 
-    fn open(base_url: &str, fname: &str) -> *mut libc::FILE {
-        use libsolv_sys::solv_xfopen;
-        let cat = base_url.to_owned() + "/" + fname;
-        let mut cstring = CString::new(cat).unwrap();
-        unsafe {solv_xfopen(cstring.as_ptr(), ptr::null())}
+    fn calc_cookie<R: Read>(r: &mut R) -> Box<[u8]> {
+        let mut chksum = Chksum::new_sha256().unwrap();
+        chksum.add(&mut Cursor::new("1.1"));
+        chksum.add(r);
+        chksum.into_boxed_slice()
+    }
+
+    fn calc_cookie_ext(cookie: &[u8], file: &File) -> Box<[u8]> {
+        let mut chksum = Chksum::new_sha256().unwrap();
+        chksum.add(&mut Cursor::new("1.1"));
+        chksum.add(&mut Cursor::new(cookie));
+        chksum.add_fstat(file);
+        chksum.into_boxed_slice()
     }
 }
 

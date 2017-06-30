@@ -9,6 +9,7 @@ pub mod transaction;
 pub mod ext;
 pub mod chksum;
 mod ownership;
+pub mod xffile;
 
 #[cfg(test)]
 mod tests {
