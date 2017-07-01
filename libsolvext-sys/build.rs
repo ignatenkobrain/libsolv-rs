@@ -31,8 +31,27 @@ fn main() {
 
         // Finish the builder and generate the bindings.
         .ctypes_prefix("libc")
-        .whitelisted_function("testcase.*")
+
+        // <solv/testcase.h>
         .whitelisted_var("TESTCASE.*")
+        .whitelisted_function("testcase.*")
+
+        // <solv/solv_xfopen.h>
+        .whitelisted_function("solv_xfopen.*")
+
+        // <solv/pool_fileconflicts.h>
+        .whitelisted_var("FINDFILECONFLICTS.*")
+        .whitelisted_function("pool_findfileconflicts")
+
+        // <solv/repo_rpmdb.h>
+        .whitelisted_function("repo_add_rpm.*")
+        .whitelisted_function("rpm_state_.*")
+        .whitelisted_function("rpm_installedrpmdbids")
+        .whitelisted_function("rpm_by.*")
+        .whitelisted_function("rpm_query.*")
+        .whitelisted_function("rpm_iterate_filelist")
+
+
         // As defined by libsolv-sys
         .hide_type("Chksum")
         .hide_type("DUChanges")
