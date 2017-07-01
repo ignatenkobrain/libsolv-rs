@@ -1,5 +1,6 @@
 extern crate libc;
 extern crate libsolv_sys;
+extern crate libsolvext_sys;
 
 pub mod queue;
 pub mod pool;

@@ -18,6 +18,10 @@ impl Repo {
         };
         Repo{ctx: ctx, _r: _r}
     }
+
+    fn add_repomd_xml(&mut self, s: &str) {
+        //use libsolvext_sys::repo_add_repomdxml;
+    }
 }
 
 impl Drop for Repo {

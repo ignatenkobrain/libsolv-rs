@@ -38,15 +38,15 @@ impl BaseRepo {
 
     fn calc_cookie<R: Read>(r: &mut R) -> Box<[u8]> {
         let mut chksum = Chksum::new_sha256().unwrap();
-        chksum.add(&mut Cursor::new("1.1"));
-        chksum.add(r);
+        chksum.add("1.1");
+        chksum.read_in(r);
         chksum.into_boxed_slice()
     }
 
     fn calc_cookie_ext(cookie: &[u8], file: &File) -> Box<[u8]> {
         let mut chksum = Chksum::new_sha256().unwrap();
-        chksum.add(&mut Cursor::new("1.1"));
-        chksum.add(&mut Cursor::new(cookie));
+        chksum.add("1.1");
+        chksum.add(cookie);
         chksum.add_fstat(file);
         chksum.into_boxed_slice()
     }

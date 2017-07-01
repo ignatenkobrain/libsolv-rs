@@ -49,12 +49,10 @@ fn main() {
         .whitelisted_function("datamatcher.*")
         .whitelisted_function("dataiterator.*")
         .whitelisted_function("map.*")
-        .whitelisted_function("testcase.*")
         .whitelisted_var("SOLVER.*")
         .whitelisted_var("REPOKEY.*")
         .whitelisted_var("SEARCH.*")
         .whitelisted_var("EVRCMP.*")
-        .whitelisted_var("TESTCASE.*")
         .hide_type("FILE")
         .raw_line("use libc::FILE;")
 

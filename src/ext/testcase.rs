@@ -14,7 +14,7 @@ use libc;
 
 
 pub fn read<P: AsRef<Path>>(pool: &PoolContext, path: P, job: &mut Queue) -> Result<(Solver, CString, c_int)> {
-    use libsolv_sys::testcase_read;
+    use libsolvext_sys::testcase_read;
 
     let fp: *mut FILE = ptr::null_mut();
     let mut resultp: *mut c_char = ptr::null_mut();
@@ -33,7 +33,7 @@ pub fn read<P: AsRef<Path>>(pool: &PoolContext, path: P, job: &mut Queue) -> Res
 }
 
 pub fn solverresult(solver: &mut Solver, resultflags: c_int) -> Option<CString> {
-    use libsolv_sys::testcase_solverresult;
+    use libsolvext_sys::testcase_solverresult;
 
     unsafe {
         let _ = solver.ctx.borrow_mut();

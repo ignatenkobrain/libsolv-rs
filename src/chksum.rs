@@ -7,7 +7,7 @@ use libsolv_sys::solv_knownid;
 use std::slice;
 use libc;
 use std::fs::File;
-use std::io::{Seek, SeekFrom, Read, BufReader};
+use std::io::{Cursor, Seek, SeekFrom, Read, BufReader};
 use std::os::unix::io::*;
 use std::convert::Into;
 
@@ -38,8 +38,11 @@ impl Chksum {
         Chksum::new(solv_knownid::REPOKEY_TYPE_SHA256 as Id)
     }
 
+    pub fn add<T: AsRef<[u8]>>(&mut self, t: T) {
+        self.read_in(&mut Cursor::new(t.as_ref()));
+    }
 
-    pub fn add<R: Read>(&mut self, r: &mut R) {
+    pub fn read_in<R: Read>(&mut self, r: &mut R) {
         use libsolv_sys::solv_chksum_add;
         let mut buffer: [u8; 4096] = [0; 4096];
 
