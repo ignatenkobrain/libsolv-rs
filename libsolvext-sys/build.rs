@@ -44,6 +44,7 @@ fn main() {
         .whitelisted_function("pool_findfileconflicts")
 
         // <solv/repo_rpmdb.h>
+        // TODO: VARS
         .whitelisted_function("repo_add_rpm.*")
         .whitelisted_function("rpm_state_.*")
         .whitelisted_function("rpm_installedrpmdbids")

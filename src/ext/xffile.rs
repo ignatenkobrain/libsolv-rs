@@ -12,7 +12,7 @@ pub fn open<T: AsRef<Path>>(p: &T) -> Option<File> {
 }
 
 pub fn open_fd<T: AsRef<Path>>(p: &T, mut fd: libc::c_int) -> Option<File> {
-    use libsolv_sys::solv_xfopen_fd;
+    use libsolvext_sys::solv_xfopen_fd;
     let cstr = CString::new(p.as_ref().to_str().unwrap()).unwrap();
 
     unsafe {
