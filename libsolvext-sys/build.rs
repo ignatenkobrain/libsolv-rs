@@ -52,6 +52,14 @@ fn main() {
         .whitelisted_function("rpm_query.*")
         .whitelisted_function("rpm_iterate_filelist")
 
+        // <solv/repo_repomdxml.h>
+        .whitelisted_function("repo_add_repo.*")
+        // <solv/repo_rpmmd.h>
+        .whitelisted_function("repo_add_rpm.*")
+        // <solv/repo_deltainfoxml.h>
+        .whitelisted_function("repo_add_delta.*")
+        // <solv/repo_updateinfoxml.h>
+        .whitelisted_function("repo_add_update.*")
 
         // As defined by libsolv-sys
         .hide_type("Chksum")

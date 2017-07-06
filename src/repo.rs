@@ -5,8 +5,8 @@ use ::pool::Pool;
 use libsolv_sys::Repo as _Repo;
 
 pub struct Repo {
-    ctx: Rc<RefCell<Pool>>,
-    _r: *mut _Repo,
+    pub(crate) ctx: Rc<RefCell<Pool>>,
+    pub(crate) _r: *mut _Repo,
 }
 
 impl Repo {
@@ -17,10 +17,6 @@ impl Repo {
             unsafe {repo_create(borrow._p, name.as_ptr())}
         };
         Repo{ctx: ctx, _r: _r}
-    }
-
-    fn add_repomd_xml(&mut self, s: &str) {
-        //use libsolvext_sys::repo_add_repomdxml;
     }
 }
 

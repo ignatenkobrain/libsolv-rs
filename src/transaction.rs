@@ -4,8 +4,8 @@ use ::pool::Pool;
 use libsolv_sys::Transaction as _Transaction;
 
 pub struct Transaction {
-    ctx: Rc<RefCell<Pool>>,
-    _t: *mut _Transaction,
+    pub(crate) ctx: Rc<RefCell<Pool>>,
+    pub(crate) _t: *mut _Transaction,
 }
 
 impl Transaction {
