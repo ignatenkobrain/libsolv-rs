@@ -1,6 +1,5 @@
 extern crate libc;
 extern crate libsolv;
-extern crate libsolv_sys;
 
 #[macro_use]
 extern crate clap;

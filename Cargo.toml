@@ -6,8 +6,34 @@ authors = ["Igor Gnatenko <ignatenko@redhat.com>"]
 [workspace]
 members = ["systest"]
 
+
+[features]
+ext = ["libsolvext-sys"]
+tools = []
+rpmdb = []
+pubkey = []
+rpmmd = []
+suse = []
+comps = []
+debian = []
+helix = []
+arch = []
+haiku = []
+appdata = []
+
+
 [dependencies]
 libsolv-sys = { path = "libsolv-sys" }
-libsolvext-sys = { path = "libsolvext-sys" }
+libsolvext-sys = { path = "libsolvext-sys", optional = true}
 libc = "0.2"
 clap = "2"
+
+[[bin]]
+name = "testsolv"
+path = "src/bin/testsolv.rs"
+required-features = ["tools", "ext"]
+
+[[bin]]
+name = "deepchase"
+path = "src/bin/deepchase.rs"
+required-features = ["tools", "ext"]
