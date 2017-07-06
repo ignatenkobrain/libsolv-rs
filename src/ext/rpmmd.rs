@@ -6,13 +6,13 @@ use std::fs::File;
 
 pub trait RpmMd {
 
-    fn add_repomd(&self, file: & File) -> bool;
+    fn add_repomd(&mut self, file: & File) -> bool;
 
-    fn add_repomdxml(&self, file: & File) -> bool;
+    fn add_repomdxml(&mut self, file: & File) -> bool;
 }
 
 impl RpmMd for Repo {
-    fn add_repomd(&self, file: &File) -> bool {
+    fn add_repomd(&mut self, file: &File) -> bool {
         use libsolvext_sys::repo_add_rpmmd;
         let borrow = self.ctx.borrow_mut();
         let mut fd = file.as_raw_fd();
@@ -35,7 +35,7 @@ impl RpmMd for Repo {
         }
     }
 
-    fn add_repomdxml(&self, file: &File) -> bool {
+    fn add_repomdxml(&mut self, file: &File) -> bool {
         use libsolvext_sys::repo_add_repomdxml;
         let borrow = self.ctx.borrow_mut();
         let mut fd = file.as_raw_fd();
