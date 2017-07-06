@@ -1,6 +1,9 @@
 pub mod testcase;
 pub mod xffile;
 
+#[cfg(feature = "rpmpkg")]
+pub mod rpmdb;
+
 #[cfg(feature = "rpmdb")]
 pub mod rpmdb;
 

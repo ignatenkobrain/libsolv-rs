@@ -9,7 +9,7 @@ members = ["systest"]
 
 [features]
 ext = ["libsolvext-sys"]
-tools = ["ext"]
+tools = ["ext", "clap"]
 rpmdb = ["ext"]
 pubkey = ["ext"]
 rpmmd = ["ext"]
@@ -26,7 +26,7 @@ appdata = ["ext"]
 libsolv-sys = { path = "libsolv-sys" }
 libsolvext-sys = { path = "libsolvext-sys", optional = true}
 libc = "0.2"
-clap = "2"
+clap = {version = "2", optional = true}
 
 [[bin]]
 name = "testsolv"
