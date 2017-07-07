@@ -26,6 +26,7 @@ appdata = ["ext"]
 libsolv-sys = { path = "libsolv-sys" }
 libsolvext-sys = { path = "libsolvext-sys", optional = true}
 libc = "0.2"
+error-chain = "0.10"
 clap = {version = "2", optional = true}
 
 [[bin]]

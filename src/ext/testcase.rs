@@ -1,4 +1,3 @@
-use std::io::Result;
 use std::path::Path;
 use ::solver::Solver;
 use libsolv_sys::Solver as _Solver;
@@ -11,7 +10,7 @@ use libc::{c_char, c_int, FILE};
 use ownership::SolvTake;
 use libc;
 
-
+use ::errors::*;
 
 pub fn read<P: AsRef<Path>>(pool: &PoolContext, path: P, job: &mut Queue) -> Result<(Solver, CString, c_int)> {
     use libsolvext_sys::testcase_read;
@@ -19,20 +18,19 @@ pub fn read<P: AsRef<Path>>(pool: &PoolContext, path: P, job: &mut Queue) -> Res
     let fp: *mut FILE = ptr::null_mut();
     let mut resultp: *mut c_char = ptr::null_mut();
     let mut resultflagsp: c_int = 0;
-    // TODO: fix unwraps
-    let testcase = CString::new(path.as_ref().to_str().unwrap()).unwrap();
+    let testcase = CString::new(path.as_ref().to_str().unwrap())?;
     let solver: *mut _Solver = {
         let borrow = pool.borrow_mut();
         unsafe {testcase_read(borrow._p, fp, testcase.as_ptr(), &mut job._q, &mut resultp, &mut resultflagsp)}
     };
 
-    let resultpString = unsafe {CString::solv_take_mut(&mut resultp)}.unwrap();
+    let resultpString = unsafe {CString::solv_take_mut(&mut resultp)}?;
 
     //TODO: We left off here. Use path, not testcase. Check solver result
     Ok((Solver::new_with_solver(pool.clone_context(), solver), resultpString, resultflagsp))
 }
 
-pub fn solverresult(solver: &mut Solver, resultflags: c_int) -> Option<CString> {
+pub fn solverresult(solver: &mut Solver, resultflags: c_int) -> Result<CString> {
     use libsolvext_sys::testcase_solverresult;
 
     unsafe {
