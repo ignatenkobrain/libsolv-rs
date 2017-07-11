@@ -19,7 +19,6 @@ fn main() {
         .compile("libsolv-static-functions.a");
 
     println!("cargo:rustc-link-lib=solv");
-    println!("cargo:rustc-link-lib=solvext");
 
 
     // The bindgen::Builder is the main entry point
