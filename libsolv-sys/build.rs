@@ -7,6 +7,9 @@ use std::path::PathBuf;
 
 
 fn main() {
+
+    // Compile the static inline functions into an archive
+    // and directs Cargo to link it
     gcc::Config::new()
         .file("static/queue.c")
         .file("static/bitmap.c")
@@ -18,19 +21,19 @@ fn main() {
         .file("static/strpool.c")
         .compile("libsolv-static-functions.a");
 
+    // Direct Cargo to link the libsolv library
     println!("cargo:rustc-link-lib=solv");
 
-
-    // The bindgen::Builder is the main entry point
-    // to bindgen, and lets you build up options for
-    // the resulting bindings.
     let bindings = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
         .header("wrapper.h")
 
-        // Finish the builder and generate the bindings.
+        // Prefer the libc crate's definitions for libc types
         .ctypes_prefix("libc")
+
+        // Whitelist libsolv's functions, types, and variables,
+        // otherwise bindgen will bind all of libc
         .whitelisted_type("Solver")
         .whitelisted_type("Chksum")
         .whitelisted_type("solv.*")
@@ -52,6 +55,9 @@ fn main() {
         .whitelisted_var("REPOKEY.*")
         .whitelisted_var("SEARCH.*")
         .whitelisted_var("EVRCMP.*")
+
+        // Hide FILE from bindgen's output
+        // Otherwise we get the OS's private file implementation
         .hide_type("FILE")
         .raw_line("use libc::FILE;")
 

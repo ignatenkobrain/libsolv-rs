@@ -18,7 +18,10 @@ pub fn read<P: AsRef<Path>>(pool: &PoolContext, path: P, job: &mut Queue) -> Res
     let fp: *mut FILE = ptr::null_mut();
     let mut resultp: *mut c_char = ptr::null_mut();
     let mut resultflagsp: c_int = 0;
-    let testcase = CString::new(path.as_ref().to_str().unwrap())?;
+
+    let path_str = path.as_ref().to_str()
+        .ok_or_else(|| format!("Cannot describe path {:?} as str", path.as_ref()))?;
+    let testcase = CString::new(path_str)?;
     let solver: *mut _Solver = {
         let borrow = pool.borrow_mut();
         unsafe {testcase_read(borrow._p, fp, testcase.as_ptr(), &mut job._q, &mut resultp, &mut resultflagsp)}

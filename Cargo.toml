@@ -8,6 +8,7 @@ members = ["systest"]
 
 
 [features]
+default = ["tools", "rpmdb", "rpmmd"]
 ext = ["libsolvext-sys"]
 tools = ["ext", "clap"]
 rpmdb = ["ext"]
