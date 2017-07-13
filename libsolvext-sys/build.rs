@@ -7,16 +7,6 @@ use std::path::PathBuf;
 
 
 fn main() {
-/*    gcc::Config::new()
-        .file("static/queue.c")
-        .file("static/bitmap.c")
-        .file("static/dirpool.c")
-        .file("static/pool.c")
-        .file("static/poolarch.c")
-        .file("static/repo.c")
-        .file("static/repodata.c")
-        .file("static/strpool.c")
-        .compile("libsolv-static-functions.a");*/
 
     println!("cargo:rustc-link-lib=solvext");
 
@@ -29,7 +19,7 @@ fn main() {
         // bindings for.
         .header("wrapper.h")
 
-        // Finish the builder and generate the bindings.
+        // Prefer the libc crate's definitions for libc types
         .ctypes_prefix("libc")
 
         // <solv/testcase.h>
@@ -61,7 +51,7 @@ fn main() {
         // <solv/repo_updateinfoxml.h>
         .whitelisted_function("repo_add_update.*")
 
-        // As defined by libsolv-sys
+        // Don't let bindgen recreate libsolv's types
         .hide_type("Chksum")
         .hide_type("DUChanges")
         .hide_type("Dataiterator")
@@ -97,9 +87,13 @@ fn main() {
         .hide_type("_Stringpool")
         .hide_type("Stringpool")
         .hide_type("Transaction")
-        // As defined by libc
+
+        // Hide FILE from bindgen's output
+        // Otherwise we get the OS's private file implementation
         .hide_type("FILE")
         .raw_line("use libc::FILE;")
+
+        // Import necessary structs from libsolv_sys
         .raw_line("use libsolv_sys::{Chksum, DUChanges, Dataiterator, Datamatcher, Datapos, Dirpool};")
         .raw_line("use libsolv_sys::{Hashtable, Hashval, Id, KeyValue, Map, Offset, Pool, Queue};")
         .raw_line("use libsolv_sys::{Reldep, _Repo, Repo, Repodata, Repokey, Rule, Solvable, Solver, Stringpool};")
