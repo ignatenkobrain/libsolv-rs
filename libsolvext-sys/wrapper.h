@@ -1,5 +1,7 @@
+// Defines what features libsolvext was built with
 #include <solv/solvversion.h>
 
+// Always included
 #include <solv/testcase.h>
 #include <solv/solv_xfopen.h>
 #include <solv/tools_util.h>
