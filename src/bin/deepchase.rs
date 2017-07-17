@@ -16,6 +16,9 @@ use std::ffi::CString;
 use std::ptr;
 use std::io::{Cursor, Read};
 use libsolv::chksum::Chksum;
+use libsolv::ext::solvfile::SolvFile;
+
+use libsolv::errors::*;
 
 struct BaseRepo {
     name: String,
@@ -24,15 +27,16 @@ struct BaseRepo {
 
 impl BaseRepo {
 
-    fn new<T: Into<String>, U: Into<String>>(name: T, base_url: U) -> Self {
+    fn new<T: Into<String>, U: Into<String>>(name: T, base_url: U) -> Result<Self> {
         let name = name.into();
         let base_url = base_url.into();
 
         let mut path = PathBuf::from(&base_url);
         path.push("repodata/repomd.xml");
-        let mut repomd = File::open(&path);
+        let mut repomd = SolvFile::open(&path)?;
 
-        BaseRepo{name: name, base_url: base_url}
+
+        Ok(BaseRepo{name: name, base_url: base_url})
     }
 
     fn calc_cookie<R: Read>(r: &mut R) -> Box<[u8]> {
@@ -49,6 +53,7 @@ impl BaseRepo {
         chksum.add_fstat(file);
         chksum.into_boxed_slice()
     }
+
 }
 
 struct OsRepo {
@@ -57,8 +62,10 @@ struct OsRepo {
 }
 
 impl OsRepo {
-    fn new<T: Into<String>, U: Into<String>>(name: T, base_url: U, src_repo: Option<SourceRepo>) -> Self {
-        OsRepo{repo: BaseRepo::new(name.into(), base_url.into()), src_repo: src_repo}
+    fn new<T: Into<String>, U: Into<String>>(name: T, base_url: U, src_repo: Option<SourceRepo>) -> Result<Self> {
+        BaseRepo::new(name.into(), base_url.into())
+            .map(|base| OsRepo{repo: base , src_repo: src_repo})
+
     }
 
     fn has_src(&self) -> bool {
@@ -79,14 +86,15 @@ struct SourceRepo {
 }
 
 impl SourceRepo {
-    fn new<T: Into<String>, U: Into<String>>(name: T, base_url: U) -> Self {
-        SourceRepo{repo: BaseRepo::new(name.into(), base_url.into())}
+    fn new<T: Into<String>, U: Into<String>>(name: T, base_url: U) -> Result<Self> {
+        BaseRepo::new(name.into(), base_url.into())
+            .map(|base| SourceRepo{repo: base})
     }
 }
 
 
 // Skip reading config for now.
-fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Vec<OsRepo> {
+fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Result<Vec<OsRepo>> {
 
     let base_dir = "~/Projects/fedora-modularity/depchase/repos";
     let os_base = base_dir.to_owned() + "/rawhide/{arch}/os";
@@ -108,10 +116,17 @@ fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Vec<O
         .filter(|&(k, _)| !k.ends_with("-source"))
         .map(|(k, v)| {
             let source_key = k.clone() + "-source";
-            let source = m
+            let mut source_result= m
                 .get(&source_key)
                 .map(|base| SourceRepo::new(source_key, base.clone()));
-            OsRepo::new(k.clone(), v.clone(), source)
+
+            let source_repo = match source_result {
+                Some(Ok(repo)) => Ok(Some(repo)),
+                Some(Err(e)) => Err(e),
+                None => Ok(None)
+            };
+
+            OsRepo::new(k.clone(), v.clone(), source_repo?)
         }).collect()
 }
 

@@ -1,5 +1,5 @@
 pub mod testcase;
-pub mod xffile;
+pub mod solvfile;
 
 #[cfg(feature = "rpmpkg")]
 pub mod rpmdb;

@@ -10,7 +10,7 @@ extern crate libsolv_sys;
 #[cfg(feature = "ext")]
 extern crate libsolvext_sys;
 
-mod errors {
+pub mod errors {
     // Create the Error, ErrorKind, ResultExt, and Result types
     error_chain! {
         foreign_links {
