@@ -53,6 +53,7 @@ fn main() {
         .whitelisted_function("datamatcher.*")
         .whitelisted_function("dataiterator.*")
         .whitelisted_function("map.*")
+        .whitelisted_var("DI.*")
         .whitelisted_var("SOLVER.*")
         .whitelisted_var("REPOKEY.*")
         .whitelisted_var("SEARCH.*")

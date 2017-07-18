@@ -16,25 +16,25 @@ pub struct Chksum {
 }
 
 impl Chksum {
-    fn new(id: Id) -> Option<Chksum> {
+    fn new(id: Id) -> Chksum {
         use libsolv_sys::solv_chksum_create;
         let _c = unsafe{solv_chksum_create(id)};
         if _c.is_null() {
-            return None;
+            panic!("libsolv returned null for solv_chksum_create(Id) with id {}", id);
         } else {
-            Some(Chksum{_c: _c})
+            Chksum{_c: _c}
         }
     }
 
-    pub fn new_md5() -> Option<Chksum> {
+    pub fn new_md5() -> Chksum {
         Chksum::new(solv_knownid::REPOKEY_TYPE_MD5 as Id)
     }
 
-    pub fn new_sha1() -> Option<Chksum> {
+    pub fn new_sha1() -> Chksum {
         Chksum::new(solv_knownid::REPOKEY_TYPE_SHA1 as Id)
     }
 
-    pub fn new_sha256() -> Option<Chksum> {
+    pub fn new_sha256() -> Chksum {
         Chksum::new(solv_knownid::REPOKEY_TYPE_SHA256 as Id)
     }
 

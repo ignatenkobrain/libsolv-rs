@@ -23,49 +23,45 @@ use libsolv::errors::*;
 
 struct BaseRepo {
     name: String,
-    base_url: String,
+    base_url: PathBuf,
 }
 
 impl BaseRepo {
 
     // change into AsRef<Path>
-    fn new<T: Into<String>, U: Into<String>>(pool_context: &PoolContext, name: T, base_url: U) -> Result<Self> {
+    fn new<T: Into<String>, U: AsRef<Path>>(pool_context: &PoolContext, name: T, base_url: U) -> Result<Self> {
         let name = name.into();
-        let base_url = base_url.into();
+        let base_url = base_url.as_ref();
 
-        let mut path = PathBuf::from(&base_url);
+        let mut repomd_path = base_url.join("repodata/repomd.xml");
 
         // Analyze the repomd.xml
-        path.push("repodata/repomd.xml");
-        let mut repomd = SolvFile::open(&path)?;
+        repomd_path.push("repodata/repomd.xml");
+        let mut repomd = SolvFile::open(&repomd_path)?;
         let cookie = Self::calc_cookie(&mut repomd);
         repomd.rewind();
 
         // Create repo in the pool
         let mut repo = pool_context.create_repo(&name);
         repo.add_repomdxml(&mut repomd);
-        // skip cached repo
+        // skip cached repo for now
 
         // TODO: stopped at find function
-
-        path.pop();
-        path.pop();
+        // Need to hand data iterator in a sane fashion
 
 
-        Ok(BaseRepo{name: name, base_url: base_url})
+        Ok(BaseRepo{name: name, base_url: base_url.to_path_buf()})
     }
 
     fn calc_cookie<R: Read>(r: &mut R) -> Box<[u8]> {
-        let mut chksum = Chksum::new_sha256()
-            .expect("libsolv returned null chksum");
+        let mut chksum = Chksum::new_sha256();
         chksum.add("1.1");
         chksum.read_in(r);
         chksum.into_boxed_slice()
     }
 
     fn calc_cookie_ext(cookie: &[u8], file: &File) -> Box<[u8]> {
-        let mut chksum = Chksum::new_sha256()
-            .expect("libsolv returned null chksum");
+        let mut chksum = Chksum::new_sha256();
         chksum.add("1.1");
         chksum.add(cookie);
         chksum.add_fstat(file);
