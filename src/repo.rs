@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::ffi::{CString, CStr};
 use std::ptr;
 use std::mem;
+use std::marker::PhantomData;
 use libc;
 use ::pool::Pool;
 use libsolv_sys::{Id, Repo as _Repo, Dataiterator as _Dataiterator};
@@ -22,6 +23,14 @@ impl Repo {
         };
         Repo{ctx: ctx, _r: _r}
     }
+
+    pub fn iter_mut<'a>(&'a mut self, p: Id, key: Id) -> DataIterator<'a> {
+        DataIterator::new(self, p, key)
+    }
+
+    pub fn iter_mut_with_string<'a, T:AsRef<str>>(&'a mut self, p: Id, key: Id, what: T, flags: libc::c_int) -> DataIterator<'a> {
+        DataIterator::new_with_string(self, p, key, what, flags)
+    }
 }
 
 impl Drop for Repo {
@@ -34,27 +43,44 @@ impl Drop for Repo {
 
 pub struct DataIterator<'a> {
     pool: RefMut<'a, Pool>,
-    repo: &'a mut Repo,
-    match_str: CString,
+    what: Option<CString>,
     _di: *mut _Dataiterator
 }
 
 impl<'a> DataIterator<'a> {
-    fn new<T: AsRef<str>>(repo: &'a mut Repo, p: Id, key: Id, m: T, flags: libc::c_int) -> DataIterator<'a> {
+
+    fn new(repo: &'a mut Repo, p: Id, key: Id) -> DataIterator<'a> {
         use libsolv_sys::{solv_calloc, dataiterator_init};
-        let _repo = repo._r;
         let pool = repo.ctx.borrow_mut();
-        let match_str = CString::new(m.as_ref())
-            .expect(&format!("Unable to create CString from {:?}", m.as_ref()));
 
         let di = unsafe {
             let mut di = solv_calloc(1, mem::size_of::<_Dataiterator>()) as *mut _Dataiterator;
-            dataiterator_init(di, pool._p, _repo, p, key, match_str.as_ptr(), flags);
+            // TODO: handle non-zero returns?
+            dataiterator_init(di, pool._p, repo._r, p, key, ptr::null(), 0);
             di
         };
 
-        DataIterator{pool: pool, repo: repo, match_str: match_str, _di: di}
+        DataIterator{pool: pool, what: None, _di: di}
+    }
 
+    fn new_with_string<T: AsRef<str>>(repo: &'a mut Repo, p: Id, key: Id, what: T, flags: libc::c_int) -> DataIterator<'a> {
+        use libsolv_sys::{solv_calloc, dataiterator_init};
+        let pool = repo.ctx.borrow_mut();
+        let what_str = CString::new(what.as_ref())
+            .expect(&format!("Unable to create CString from {:?}", what.as_ref()));
+
+        let di = unsafe {
+            let mut di = solv_calloc(1, mem::size_of::<_Dataiterator>()) as *mut _Dataiterator;
+            // TODO: handle non-zero returns?
+            dataiterator_init(di, pool._p, repo._r, p, key, what_str.as_ptr(), flags);
+            di
+        };
+
+        DataIterator{pool: pool, what: Some(what_str), _di: di}
+    }
+
+    fn next(&'a mut self) -> DataMatch<'a> {
+        DataMatch::clone_from(self._di)
     }
 }
 
@@ -68,3 +94,38 @@ impl<'a> Drop for DataIterator<'a> {
         self._di = ptr::null_mut();
     }
 }
+
+pub struct DataMatch<'a> {
+    _ndi: *mut _Dataiterator,
+    _l: PhantomData<&'a ()>
+}
+
+impl<'a> DataMatch<'a> {
+
+    fn clone_from(di: *mut _Dataiterator) -> DataMatch<'a> {
+        use libsolv_sys::{solv_calloc, dataiterator_init_clone, dataiterator_strdup};
+        let ndi = unsafe {
+            let mut ndi = solv_calloc(1, mem::size_of::<_Dataiterator>()) as *mut _Dataiterator;
+            dataiterator_init_clone(ndi, di);
+            dataiterator_strdup(ndi);
+            ndi
+        };
+
+        DataMatch{_ndi: ndi, _l: PhantomData}
+    }
+}
+
+//TODO: Left off at DataPos
+
+impl<'a> Drop for DataMatch<'a> {
+
+    fn drop(&mut self) {
+        use libsolv_sys::{dataiterator_free, solv_free};
+        unsafe {
+            dataiterator_free(self._ndi);
+            solv_free(self._ndi as *mut libc::c_void);
+        }
+        self._ndi = ptr::null_mut();
+    }
+}
+
