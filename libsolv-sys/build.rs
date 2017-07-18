@@ -21,6 +21,8 @@ fn main() {
         .file("static/strpool.c")
         .compile("libsolv-static-functions.a");
 
+    //pkg_config::probe_library("libsolvext").unwrap();
+
     // Direct Cargo to link the libsolv library
     println!("cargo:rustc-link-lib=solv");
 

@@ -10,11 +10,12 @@ pub struct Repo {
 }
 
 impl Repo {
-    pub(crate) fn new_with_context(ctx: Rc<RefCell<Pool>>, name: &CString) -> Self {
+    pub(crate) fn new_with_context<S: AsRef<str>>(ctx: Rc<RefCell<Pool>>, name: S) -> Self {
         use libsolv_sys::repo_create;
+        let cstr_name = CString::new(name.as_ref()).expect("invalid cstring");
         let _r = {
             let borrow = ctx.borrow_mut();
-            unsafe {repo_create(borrow._p, name.as_ptr())}
+            unsafe {repo_create(borrow._p, cstr_name.as_ptr())}
         };
         Repo{ctx: ctx, _r: _r}
     }

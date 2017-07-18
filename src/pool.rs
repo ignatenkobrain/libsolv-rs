@@ -5,7 +5,7 @@ use ::solver::Solver;
 use ::repo::Repo;
 use std::ffi::CString;
 use ::transaction::Transaction;
-
+use std::marker::PhantomData;
 
 pub struct PoolContext {
     pool: Rc<RefCell<Pool>>,
@@ -24,7 +24,7 @@ impl PoolContext {
         Transaction::new_with_context(self.pool.clone())
     }
 
-    pub fn create_repo(&self, name: &CString) -> Repo {
+    pub fn create_repo<S: AsRef<str>>(&self, name: S) -> Repo {
         Repo::new_with_context(self.pool.clone(), name)
     }
 

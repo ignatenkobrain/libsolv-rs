@@ -8,6 +8,8 @@ use std::path::PathBuf;
 
 fn main() {
 
+    //pkg_config::probe_library("libsolvext").unwrap();
+
     println!("cargo:rustc-link-lib=solvext");
 
 

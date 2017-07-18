@@ -16,7 +16,8 @@ use std::ffi::CString;
 use std::ptr;
 use std::io::{Cursor, Read};
 use libsolv::chksum::Chksum;
-use libsolv::ext::solvfile::SolvFile;
+use libsolv::ext::solvfile::*;
+use libsolv::ext::rpmmd::*;
 
 use libsolv::errors::*;
 
@@ -27,27 +28,44 @@ struct BaseRepo {
 
 impl BaseRepo {
 
-    fn new<T: Into<String>, U: Into<String>>(name: T, base_url: U) -> Result<Self> {
+    // change into AsRef<Path>
+    fn new<T: Into<String>, U: Into<String>>(pool_context: &PoolContext, name: T, base_url: U) -> Result<Self> {
         let name = name.into();
         let base_url = base_url.into();
 
         let mut path = PathBuf::from(&base_url);
+
+        // Analyze the repomd.xml
         path.push("repodata/repomd.xml");
         let mut repomd = SolvFile::open(&path)?;
+        let cookie = Self::calc_cookie(&mut repomd);
+        repomd.rewind();
+
+        // Create repo in the pool
+        let mut repo = pool_context.create_repo(&name);
+        repo.add_repomdxml(&mut repomd);
+        // skip cached repo
+
+        // TODO: stopped at find function
+
+        path.pop();
+        path.pop();
 
 
         Ok(BaseRepo{name: name, base_url: base_url})
     }
 
     fn calc_cookie<R: Read>(r: &mut R) -> Box<[u8]> {
-        let mut chksum = Chksum::new_sha256().unwrap();
+        let mut chksum = Chksum::new_sha256()
+            .expect("libsolv returned null chksum");
         chksum.add("1.1");
         chksum.read_in(r);
         chksum.into_boxed_slice()
     }
 
     fn calc_cookie_ext(cookie: &[u8], file: &File) -> Box<[u8]> {
-        let mut chksum = Chksum::new_sha256().unwrap();
+        let mut chksum = Chksum::new_sha256()
+            .expect("libsolv returned null chksum");
         chksum.add("1.1");
         chksum.add(cookie);
         chksum.add_fstat(file);
@@ -62,8 +80,8 @@ struct OsRepo {
 }
 
 impl OsRepo {
-    fn new<T: Into<String>, U: Into<String>>(name: T, base_url: U, src_repo: Option<SourceRepo>) -> Result<Self> {
-        BaseRepo::new(name.into(), base_url.into())
+    fn new<T: Into<String>, U: Into<String>>(pool_context: &PoolContext, name: T, base_url: U, src_repo: Option<SourceRepo>) -> Result<Self> {
+        BaseRepo::new(pool_context, name.into(), base_url.into())
             .map(|base| OsRepo{repo: base , src_repo: src_repo})
 
     }
@@ -86,8 +104,8 @@ struct SourceRepo {
 }
 
 impl SourceRepo {
-    fn new<T: Into<String>, U: Into<String>>(name: T, base_url: U) -> Result<Self> {
-        BaseRepo::new(name.into(), base_url.into())
+    fn new<T: Into<String>, U: Into<String>>(pool_context: &PoolContext, name: T, base_url: U) -> Result<Self> {
+        BaseRepo::new(pool_context, name.into(), base_url.into())
             .map(|base| SourceRepo{repo: base})
     }
 }
@@ -116,9 +134,9 @@ fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Resul
         .filter(|&(k, _)| !k.ends_with("-source"))
         .map(|(k, v)| {
             let source_key = k.clone() + "-source";
-            let mut source_result= m
+            let source_result= m
                 .get(&source_key)
-                .map(|base| SourceRepo::new(source_key, base.clone()));
+                .map(|base| SourceRepo::new(pool_context, source_key, base.clone()));
 
             let source_repo = match source_result {
                 Some(Ok(repo)) => Ok(Some(repo)),
@@ -126,7 +144,7 @@ fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Resul
                 None => Ok(None)
             };
 
-            OsRepo::new(k.clone(), v.clone(), source_repo?)
+            OsRepo::new(pool_context, k.clone(), v.clone(), source_repo?)
         }).collect()
 }
 
