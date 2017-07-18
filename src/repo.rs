@@ -24,13 +24,17 @@ impl Repo {
         Repo{ctx: ctx, _r: _r}
     }
 
-    pub fn iter_mut<'a>(&'a mut self, p: Id, key: Id) -> DataIterator<'a> {
+    pub fn iter_mut(& mut self, p: Id, key: Id) -> DataIterator {
         DataIterator::new(self, p, key)
     }
 
-    pub fn iter_mut_with_string<'a, T:AsRef<str>>(&'a mut self, p: Id, key: Id, what: T, flags: libc::c_int) -> DataIterator<'a> {
+    pub fn iter_mut_with_string<T:AsRef<str>>(&mut self, p: Id, key: Id, what: T, flags: libc::c_int) -> DataIterator {
         DataIterator::new_with_string(self, p, key, what, flags)
     }
+}
+
+fn test(repo: &mut Repo) -> DataMatch {
+    repo.iter_mut(1, 2).next()
 }
 
 impl Drop for Repo {
@@ -49,7 +53,7 @@ pub struct DataIterator<'a> {
 
 impl<'a> DataIterator<'a> {
 
-    fn new(repo: &'a mut Repo, p: Id, key: Id) -> DataIterator<'a> {
+    fn new(repo: &mut Repo, p: Id, key: Id) -> DataIterator {
         use libsolv_sys::{solv_calloc, dataiterator_init};
         let pool = repo.ctx.borrow_mut();
 
@@ -63,7 +67,7 @@ impl<'a> DataIterator<'a> {
         DataIterator{pool: pool, what: None, _di: di}
     }
 
-    fn new_with_string<T: AsRef<str>>(repo: &'a mut Repo, p: Id, key: Id, what: T, flags: libc::c_int) -> DataIterator<'a> {
+    fn new_with_string<T: AsRef<str>>(repo: &mut Repo, p: Id, key: Id, what: T, flags: libc::c_int) -> DataIterator {
         use libsolv_sys::{solv_calloc, dataiterator_init};
         let pool = repo.ctx.borrow_mut();
         let what_str = CString::new(what.as_ref())
@@ -79,7 +83,7 @@ impl<'a> DataIterator<'a> {
         DataIterator{pool: pool, what: Some(what_str), _di: di}
     }
 
-    fn next(&'a mut self) -> DataMatch<'a> {
+    fn next(&mut self) -> DataMatch {
         DataMatch::clone_from(self._di)
     }
 }
