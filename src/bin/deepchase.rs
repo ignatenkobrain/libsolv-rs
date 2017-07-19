@@ -47,6 +47,7 @@ impl BaseRepo {
         // skip cached repo for now
 
         // TODO: stopped at find function
+        // Left off at di.prepend_keyname(solv.REPOSITORY_REPOMD)
         // Need to hand data iterator in a sane fashion
 
 

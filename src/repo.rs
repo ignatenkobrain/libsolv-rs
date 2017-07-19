@@ -158,17 +158,21 @@ pub struct DataPos<'a> {
 
 impl<'a> DataPos<'a> {
 
-    pub fn lookup_str(&mut self, keyname: Id) -> &CStr {
+    pub fn lookup_str(&mut self, keyname: Id) -> Option<&CStr> {
         use libsolv_sys::{SOLVID_POS, pool_lookup_str};
         let ref mut pool = unsafe{*(*(self._dp).repo).pool};
         let old_pos = pool.pos;
         pool.pos = self._dp;
         let r = unsafe {pool_lookup_str(pool, SOLVID_POS, keyname)};
         pool.pos = old_pos;
-        unsafe {CStr::from_ptr(r)}
+        if r.is_null() {
+            None
+        } else {
+            unsafe { Some(CStr::from_ptr(r)) }
+        }
     }
 
-    pub fn lookup_checksum(&mut self, keyname:Id) -> Chksum {
+    pub fn lookup_checksum(&mut self, keyname:Id) -> Option<Chksum> {
         use libsolv_sys::{SOLVID_POS, pool_lookup_bin_checksum, solv_chksum_create_from_bin};
         let ref mut pool = unsafe{*(*(self._dp).repo).pool};
         let old_pos = pool.pos;
@@ -178,7 +182,12 @@ impl<'a> DataPos<'a> {
             let b = pool_lookup_bin_checksum(pool, SOLVID_POS, keyname, &mut type_id);
             pool.pos = old_pos;
             let _c = solv_chksum_create_from_bin(type_id, b);
-            Chksum::new_from(_c)
+            if _c.is_null() {
+                None
+            } else {
+                Some(Chksum::new_from(_c))
+            }
+
         }
     }
 
