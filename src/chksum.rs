@@ -26,6 +26,13 @@ impl Chksum {
         }
     }
 
+    pub(crate) unsafe fn new_from(_c: *mut _Chksum) -> Chksum {
+        if _c.is_null() {
+            panic!("libsolv returned null for solv_chksum_create(Id)");
+        }
+        Chksum{_c: _c}
+    }
+
     pub fn new_md5() -> Chksum {
         Chksum::new(solv_knownid::REPOKEY_TYPE_MD5 as Id)
     }

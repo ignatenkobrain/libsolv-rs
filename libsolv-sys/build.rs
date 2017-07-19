@@ -54,7 +54,7 @@ fn main() {
         .whitelisted_function("dataiterator.*")
         .whitelisted_function("map.*")
         .whitelisted_var("DI.*")
-        .whitelisted_var("SOLVER.*")
+        .whitelisted_var("SOLV.*")
         .whitelisted_var("REPOKEY.*")
         .whitelisted_var("SEARCH.*")
         .whitelisted_var("EVRCMP.*")
