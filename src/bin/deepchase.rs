@@ -9,7 +9,7 @@ use std::cell::{RefCell, Ref, RefMut};
 use std::collections::HashMap;
 use clap::App;
 use libsolv::pool::PoolContext;
-use libsolv::repo::Repo;
+use libsolv::repo::{Repo, SEARCH_STRING};
 use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::ffi::CString;
@@ -20,6 +20,7 @@ use libsolv::ext::solvfile::*;
 use libsolv::ext::rpmmd::*;
 
 use libsolv::errors::*;
+use libsolv::solv_knownid;
 
 struct BaseRepo {
     name: String,

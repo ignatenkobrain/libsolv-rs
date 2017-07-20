@@ -3,11 +3,15 @@ use std::rc::Rc;
 use std::ffi::{CString, CStr};
 use std::ptr;
 use std::mem;
+use std::iter::Iterator;
 use std::marker::PhantomData;
 use libc;
 use ::pool::Pool;
 use ::chksum::Chksum;
 use libsolv_sys::{Id, Repo as _Repo, Dataiterator as _Dataiterator, Datapos as _Datapos};
+use ::solv_knownid;
+
+pub use libsolv_sys::{SEARCH_STRING};
 
 pub struct Repo {
     pub(crate) ctx: Rc<RefCell<Pool>>,
@@ -34,9 +38,9 @@ impl Repo {
     }
 }
 
-fn should_fail(repo: &mut Repo) -> DataPos {
+/*fn should_fail(repo: &mut Repo) -> DataPos {
     repo.iter_mut(1, 2).next().parent_pos()
-}
+}*/
 
 impl Drop for Repo {
     fn drop(&mut self) {
@@ -84,6 +88,11 @@ impl<'a> DataIterator<'a> {
         DataIterator{pool: pool, what: Some(what_str), _di: di}
     }
 
+    pub fn prepend_keyname(&mut self, key_name: solv_knownid) {
+        use libsolv_sys::dataiterator_prepend_keyname;
+        unsafe {dataiterator_prepend_keyname(&mut self._di, key_name as Id)};
+    }
+
     fn next(&mut self) -> DataMatch {
         DataMatch::clone_from(&mut self._di)
     }
@@ -94,6 +103,19 @@ impl<'a> Drop for DataIterator<'a> {
         use libsolv_sys::{dataiterator_free, solv_free};
         unsafe {
             dataiterator_free(&mut self._di);
+        }
+    }
+}
+
+impl<'a> Iterator for DataIterator<'a> {
+    type Item = DataMatch<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        use libsolv_sys::dataiterator_step;
+        if unsafe {dataiterator_step(&mut self._di) } == 0 {
+            None
+        } else {
+            Some(DataMatch::clone_from(&mut self._di))
         }
     }
 }
@@ -163,12 +185,14 @@ impl<'a> DataPos<'a> {
         let ref mut pool = unsafe{*(*(self._dp).repo).pool};
         let old_pos = pool.pos;
         pool.pos = self._dp;
-        let r = unsafe {pool_lookup_str(pool, SOLVID_POS, keyname)};
-        pool.pos = old_pos;
-        if r.is_null() {
-            None
-        } else {
-            unsafe { Some(CStr::from_ptr(r)) }
+        unsafe {
+            let r = pool_lookup_str(pool, SOLVID_POS, keyname);
+            pool.pos = old_pos;
+            if r.is_null() {
+                None
+            } else {
+                Some(CStr::from_ptr(r))
+            }
         }
     }
 

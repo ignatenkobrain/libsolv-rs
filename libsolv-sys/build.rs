@@ -55,7 +55,7 @@ fn main() {
         .whitelisted_function("map.*")
         .whitelisted_var("DI.*")
         .whitelisted_var("SOLV.*")
-        .whitelisted_var("REPOKEY.*")
+        .whitelisted_var("REPO.*")
         .whitelisted_var("SEARCH.*")
         .whitelisted_var("EVRCMP.*")
 
