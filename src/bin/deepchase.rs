@@ -9,7 +9,7 @@ use std::cell::{RefCell, Ref, RefMut};
 use std::collections::HashMap;
 use clap::App;
 use libsolv::pool::PoolContext;
-use libsolv::repo::{Repo, SEARCH_STRING};
+use libsolv::repo::{Repo, SEARCH_STRING, SOLVID_META};
 use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::ffi::CString;
@@ -20,8 +20,10 @@ use libsolv::ext::solvfile::*;
 use libsolv::ext::rpmmd::*;
 
 use libsolv::errors::*;
-use libsolv::solv_knownid;
+use libsolv::{solv_knownid, Id};
 
+
+#[derive(Debug)]
 struct BaseRepo {
     name: String,
     base_url: PathBuf,
@@ -37,20 +39,46 @@ impl BaseRepo {
         let mut repomd_path = base_url.join("repodata/repomd.xml");
 
         // Analyze the repomd.xml
-        repomd_path.push("repodata/repomd.xml");
         let mut repomd = SolvFile::open(&repomd_path)?;
+        println!("Opened repomd.xml");
+
         let cookie = Self::calc_cookie(&mut repomd);
+        println!("calc_cookie finished.");
         repomd.rewind();
+
+        println!("Rewind succeedd.");
 
         // Create repo in the pool
         let mut repo = pool_context.create_repo(&name);
+
+        println!("Created repo.");
+
         repo.add_repomdxml(&mut repomd);
         // skip cached repo for now
+
+        println!("Added repo");
 
         // TODO: stopped at find function
         // Left off at di.prepend_keyname(solv.REPOSITORY_REPOMD)
         // Need to hand data iterator in a sane fashion
 
+        let mut di = repo.iter_mut_with_string(SOLVID_META as Id, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, "primary", libsolv::repo::SEARCH_STRING as Id);
+        di.prepend_keyname(solv_knownid::REPOSITORY_REPOMD);
+        println!("Created di");
+        for mut d in di {
+            println!(" Iter di");
+            let mut dp = d.parent_pos();
+
+            println!("Looked up parent pos");
+
+            let chksum = dp.lookup_checksum(solv_knownid::REPOSITORY_REPOMD_CHECKSUM as Id);
+            println!("Looked up checksum");
+            let filename = dp.lookup_str(solv_knownid::REPOSITORY_REPOMD_LOCATION as Id);
+
+            println!("Looked up str");
+
+            println!("How'd it go? {:?}, {:?}", filename, chksum.map(|c| c.into_boxed_slice()) );
+        }
 
         Ok(BaseRepo{name: name, base_url: base_url.to_path_buf()})
     }
@@ -72,6 +100,7 @@ impl BaseRepo {
 
 }
 
+#[derive(Debug)]
 struct OsRepo {
     repo: BaseRepo,
     src_repo: Option<SourceRepo>
@@ -97,6 +126,7 @@ impl OsRepo {
     }
 }
 
+#[derive(Debug)]
 struct SourceRepo {
     repo: BaseRepo
 }
@@ -112,9 +142,10 @@ impl SourceRepo {
 // Skip reading config for now.
 fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Result<Vec<OsRepo>> {
 
-    let base_dir = "~/Projects/fedora-modularity/depchase/repos";
+    // Can't handle ~/ ?
+    let base_dir = "/Users/abaxter/Projects/fedora-modularity/depchase/repos";
     let os_base = base_dir.to_owned() + "/rawhide/{arch}/os";
-    let source_base = base_dir.to_owned() + "/rawhide/{arch}/os";
+    let source_base = base_dir.to_owned() + "/rawhide/{arch}/sources";
     let m: HashMap<String, String> = vec![
         ("base".to_owned(), os_base),
         ("base-source".to_owned(), source_base)
@@ -128,6 +159,8 @@ fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Resul
         //pool.set_loadcallback(load_stub)
     }
 
+    println!("{:?}", &m);
+
     m.iter()
         .filter(|&(k, _)| !k.ends_with("-source"))
         .map(|(k, v)| {
@@ -135,6 +168,8 @@ fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Resul
             let source_result= m
                 .get(&source_key)
                 .map(|base| SourceRepo::new(pool_context, source_key, base.clone()));
+
+            println!("{:?}", &source_result);
 
             let source_repo = match source_result {
                 Some(Ok(repo)) => Ok(Some(repo)),

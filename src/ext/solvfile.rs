@@ -18,9 +18,9 @@ pub struct SolvFile {
 impl SolvFile {
     pub fn open<T: AsRef<Path>>(p: &T) -> Result<Self> {
 
-        let fd = File::open(p)
-            .map(|f| f.as_raw_fd())
+        let file = File::open(p)
             .chain_err(||format!("Unable to open {:?}", p.as_ref()))?;
+        let fd = file.as_raw_fd();
 
         SolvFile::open_fd(p, fd)
     }
@@ -76,6 +76,7 @@ impl Read for SolvFile {
         let l = unsafe {
             fread(buf.as_mut_ptr() as *mut libc::c_void, 1, len, self._fp)
         };
+        println!("{:?}", l);
         Ok(l)
     }
 }

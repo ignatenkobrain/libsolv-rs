@@ -27,7 +27,7 @@ pub mod transaction;
 pub mod chksum;
 mod ownership;
 
-pub use libsolv_sys::solv_knownid;
+pub use libsolv_sys::{solv_knownid, Id};
 
 #[cfg(feature = "ext")]
 pub mod ext;

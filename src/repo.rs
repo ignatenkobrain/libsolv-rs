@@ -11,7 +11,7 @@ use ::chksum::Chksum;
 use libsolv_sys::{Id, Repo as _Repo, Dataiterator as _Dataiterator, Datapos as _Datapos};
 use ::solv_knownid;
 
-pub use libsolv_sys::{SEARCH_STRING};
+pub use libsolv_sys::{SEARCH_STRING, SOLVID_META};
 
 pub struct Repo {
     pub(crate) ctx: Rc<RefCell<Pool>>,
@@ -37,10 +37,6 @@ impl Repo {
         DataIterator::new_with_string(self, p, key, what, flags)
     }
 }
-
-/*fn should_fail(repo: &mut Repo) -> DataPos {
-    repo.iter_mut(1, 2).next().parent_pos()
-}*/
 
 impl Drop for Repo {
     fn drop(&mut self) {
@@ -93,9 +89,6 @@ impl<'a> DataIterator<'a> {
         unsafe {dataiterator_prepend_keyname(&mut self._di, key_name as Id)};
     }
 
-    fn impl_next(&mut self) -> Option<DataMatch> {
-        Some(DataMatch::clone_from(&mut self._di))
-    }
 }
 
 impl<'a> Drop for DataIterator<'a> {
@@ -115,7 +108,7 @@ impl<'a> Iterator for DataIterator<'a> {
         if unsafe {dataiterator_step(&mut self._di) } == 0 {
             None
         } else {
-            Some(DataMatch::clone_from(&mut self._di))
+            Some(DataMatch::clone_from(self._di, PhantomData))
         }
     }
 }
@@ -127,19 +120,19 @@ pub struct DataMatch<'a> {
 
 impl<'a> DataMatch<'a> {
 
-    fn clone_from(di: &mut _Dataiterator) -> DataMatch {
+    fn clone_from(mut di: _Dataiterator, l: PhantomData<&'a ()>) -> DataMatch {
         use libsolv_sys::{solv_calloc, dataiterator_init_clone, dataiterator_strdup};
         let ndi = unsafe {
             let mut ndi = mem::uninitialized();
-            dataiterator_init_clone(&mut ndi, di);
+            dataiterator_init_clone(&mut ndi, &mut di);
             dataiterator_strdup(&mut ndi);
             ndi
         };
 
-        DataMatch{_ndi: ndi, _l: PhantomData}
+        DataMatch{_ndi: ndi, _l: l}
     }
 
-    fn pos(&mut self) -> DataPos {
+    pub fn pos(&mut self) -> DataPos {
         use libsolv_sys::dataiterator_setpos;
         let ref mut pool = unsafe{*self._ndi.pool};
         let old_pos = pool.pos;
@@ -149,7 +142,7 @@ impl<'a> DataMatch<'a> {
         DataPos{_dp: pos, _l: PhantomData}
     }
 
-    fn parent_pos(&mut self) -> DataPos {
+    pub fn parent_pos(&mut self) -> DataPos {
         use libsolv_sys::dataiterator_setpos_parent;
         let ref mut pool = unsafe{*self._ndi.pool};
         let old_pos = pool.pos;

@@ -46,7 +46,8 @@ impl Chksum {
     }
 
     pub fn add<T: AsRef<[u8]>>(&mut self, t: T) {
-        self.read_in(&mut Cursor::new(t.as_ref()));
+        let mut c = Cursor::new(t.as_ref());
+        self.read_in(&mut c);
     }
 
     pub fn read_in<R: Read>(&mut self, r: &mut R) {
@@ -55,6 +56,9 @@ impl Chksum {
 
         let mut reader = BufReader::new(r);
         while let Ok(l) = reader.read(&mut buffer) {
+            if l == 0 {
+                break;
+            }
             unsafe {solv_chksum_add(self._c, buffer.as_ptr() as *const libc::c_void, l as i32)};
         }
     }
