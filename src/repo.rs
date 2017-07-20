@@ -191,6 +191,8 @@ impl<'a> DataPos<'a> {
 
     pub fn lookup_checksum(&mut self, keyname:Id) -> Option<Chksum> {
         use libsolv_sys::{SOLVID_POS, pool_lookup_bin_checksum, solv_chksum_create_from_bin};
+
+        //TODO: Errors somewhere in here. 
         let ref mut pool = unsafe{*(*(self._dp).repo).pool};
         let old_pos = pool.pos;
         let mut type_id = 0;
