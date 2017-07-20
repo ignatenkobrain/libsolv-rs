@@ -93,8 +93,8 @@ impl<'a> DataIterator<'a> {
         unsafe {dataiterator_prepend_keyname(&mut self._di, key_name as Id)};
     }
 
-    fn next(&mut self) -> DataMatch {
-        DataMatch::clone_from(&mut self._di)
+    fn impl_next(&mut self) -> Option<DataMatch> {
+        Some(DataMatch::clone_from(&mut self._di))
     }
 }
 
