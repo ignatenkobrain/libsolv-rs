@@ -1,11 +1,13 @@
 use std::cell::{RefCell, Ref, RefMut};
 use std::rc::Rc;
-use libsolv_sys::Pool as _Pool;
+use libsolv_sys::{Pool as PoolT, _Pool, _Repodata};
 use ::solver::Solver;
 use ::repo::Repo;
 use std::ffi::CString;
 use ::transaction::Transaction;
 use std::marker::PhantomData;
+use std::ptr;
+use libc;
 
 pub struct PoolContext {
     pool: Rc<RefCell<Pool>>,
@@ -44,7 +46,7 @@ impl PoolContext {
 
 
 pub struct Pool {
-    pub _p: *mut _Pool,
+    pub _p: *mut PoolT,
 }
 
 impl Pool {
@@ -57,6 +59,16 @@ impl Pool {
         use libsolv_sys::pool_setarch;
         let string = CString::new(arch).unwrap();
         unsafe {pool_setarch(self._p, string.as_ptr())};
+    }
+
+    pub fn clear_loadcallback(&mut self) {
+        use libsolv_sys::pool_setloadcallback;
+        unsafe {pool_setloadcallback(self._p, None, ptr::null_mut())};
+    }
+
+    pub fn set_loadcallback(&mut self, cb: unsafe extern "C" fn(_: *mut _Pool, _: *mut _Repodata, _: *mut libc::c_void) -> libc::c_int) {
+        use libsolv_sys::pool_setloadcallback;
+        unsafe {pool_setloadcallback(self._p, Some(cb), ptr::null_mut())};
     }
 }
 

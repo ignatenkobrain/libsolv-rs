@@ -36,6 +36,6 @@ path = "src/bin/testsolv.rs"
 required-features = ["tools", "ext"]
 
 [[bin]]
-name = "deepchase"
-path = "src/bin/deepchase.rs"
+name = "depchase"
+path = "src/bin/depchase.rs"
 required-features = ["tools", "rpmmd"]

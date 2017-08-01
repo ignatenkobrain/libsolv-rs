@@ -25,6 +25,7 @@ pub mod repo;
 pub mod solver;
 pub mod transaction;
 pub mod chksum;
+pub mod sys;
 mod ownership;
 
 pub use libsolv_sys::{solv_knownid, Id};

@@ -18,7 +18,7 @@ use std::io::{Cursor, Read};
 use libsolv::chksum::Chksum;
 use libsolv::ext::solvfile::*;
 use libsolv::ext::rpmmd::*;
-
+use libsolv::sys::{_Pool, _Repodata, _Repo};
 use libsolv::errors::*;
 use libsolv::{solv_knownid, Id};
 
@@ -59,7 +59,6 @@ impl BaseRepo {
         println!("Added repo");
 
         // TODO: stopped at find function
-        // Left off at di.prepend_keyname(solv.REPOSITORY_REPOMD)
         // Need to hand data iterator in a sane fashion
 
         let mut di = repo.iter_mut_with_string(SOLVID_META as Id, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, "primary", libsolv::repo::SEARCH_STRING as Id);
@@ -67,6 +66,7 @@ impl BaseRepo {
         println!("Created di");
         for mut d in di {
             println!(" Iter di");
+            //TODO: about to try regular pos?
             let mut dp = d.parent_pos();
 
             println!("Looked up parent pos");
@@ -138,6 +138,16 @@ impl SourceRepo {
     }
 }
 
+unsafe extern "C" fn loadcallback(_p: *mut _Pool, _rd: *mut _Repodata, _d: *mut libc::c_void) -> libc::c_int {
+    let rd = &mut *_rd;
+    let repo_id = rd.repodataid;
+    let _repo = (*rd.repo).appdata as *mut _Repo;
+    if !_repo.is_null() {
+        let mut repo = *_repo;
+    }
+    0
+}
+
 
 // Skip reading config for now.
 fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Result<Vec<OsRepo>> {
@@ -156,7 +166,7 @@ fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Resul
     {
         let mut pool = pool_context.borrow_mut();
         pool.set_arch(arch);
-        //pool.set_loadcallback(load_stub)
+        pool.set_loadcallback(loadcallback);
     }
 
     println!("{:?}", &m);

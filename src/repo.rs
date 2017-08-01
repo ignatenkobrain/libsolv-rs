@@ -113,6 +113,7 @@ impl<'a> Iterator for DataIterator<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct DataMatch<'a> {
     _ndi: _Dataiterator,
     _l: PhantomData<&'a ()>
@@ -121,6 +122,8 @@ pub struct DataMatch<'a> {
 impl<'a> DataMatch<'a> {
 
     fn clone_from(mut di: _Dataiterator, l: PhantomData<&'a ()>) -> DataMatch {
+
+        println!("clone from: {:?}", &di);
         use libsolv_sys::{solv_calloc, dataiterator_init_clone, dataiterator_strdup};
         let ndi = unsafe {
             let mut ndi = mem::uninitialized();
@@ -129,6 +132,7 @@ impl<'a> DataMatch<'a> {
             ndi
         };
 
+        println!("cloned di: {:?}", &ndi);
         DataMatch{_ndi: ndi, _l: l}
     }
 
@@ -145,9 +149,13 @@ impl<'a> DataMatch<'a> {
     pub fn parent_pos(&mut self) -> DataPos {
         use libsolv_sys::dataiterator_setpos_parent;
         let ref mut pool = unsafe{*self._ndi.pool};
+        println!("old_pool: {:?}", pool);
         let old_pos = pool.pos;
+        println!("old_pos: {:?}", &old_pos);
         unsafe {dataiterator_setpos_parent(&mut self._ndi)};
+        println!("parent_pool: {:?}", pool);
         let pos = pool.pos;
+        println!("pos: {:?}", &old_pos);
         pool.pos = old_pos;
         DataPos{_dp: pos, _l: PhantomData}
     }
@@ -165,7 +173,7 @@ impl<'a> Drop for DataMatch<'a> {
     }
 }
 
-
+#[derive(Debug)]
 pub struct DataPos<'a> {
     _dp: _Datapos,
     _l: PhantomData<&'a ()>
@@ -191,12 +199,15 @@ impl<'a> DataPos<'a> {
 
     pub fn lookup_checksum(&mut self, keyname:Id) -> Option<Chksum> {
         use libsolv_sys::{SOLVID_POS, pool_lookup_bin_checksum, solv_chksum_create_from_bin};
+        println!("Made it into function: {:?}", self);
 
-        //TODO: Errors somewhere in here. 
+        //TODO: Errors right here.
         let ref mut pool = unsafe{*(*(self._dp).repo).pool};
+        println!("deref pool.");
         let old_pos = pool.pos;
         let mut type_id = 0;
         pool.pos = self._dp;
+        println!("Made it past pos shenanigans.");
         unsafe {
             let b = pool_lookup_bin_checksum(pool, SOLVID_POS, keyname, &mut type_id);
             pool.pos = old_pos;
