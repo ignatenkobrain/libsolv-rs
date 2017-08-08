@@ -8,15 +8,19 @@ use std::marker::PhantomData;
 use libc;
 use ::pool::Pool;
 use ::chksum::Chksum;
-use libsolv_sys::{Id, Repo as _Repo, Dataiterator as _Dataiterator, Datapos as _Datapos};
-use ::solv_knownid;
+use libsolv_sys::{Repo as _Repo, Dataiterator as _Dataiterator, Datapos as _Datapos};
+use ::{Id, solv_knownid};
 
 pub use libsolv_sys::{SEARCH_STRING, SOLVID_META};
+
+pub struct RepoDataRef {}
 
 pub struct Repo {
     pub(crate) ctx: Rc<RefCell<Pool>>,
     pub(crate) _r: *mut _Repo,
 }
+
+
 
 impl Repo {
     pub(crate) fn new_with_context<S: AsRef<str>>(ctx: Rc<RefCell<Pool>>, name: S) -> Self {

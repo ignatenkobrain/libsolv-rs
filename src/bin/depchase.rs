@@ -43,7 +43,7 @@ impl BaseRepo {
         println!("Opened repomd.xml");
 
         let cookie = Self::calc_cookie(&mut repomd);
-        println!("calc_cookie finished.");
+        println!("calc_cookie finished. {:?}", &cookie);
         repomd.rewind();
 
         println!("Rewind succeedd.");
@@ -138,16 +138,6 @@ impl SourceRepo {
     }
 }
 
-unsafe extern "C" fn loadcallback(_p: *mut _Pool, _rd: *mut _Repodata, _d: *mut libc::c_void) -> libc::c_int {
-    let rd = &mut *_rd;
-    let repo_id = rd.repodataid;
-    let _repo = (*rd.repo).appdata as *mut _Repo;
-    if !_repo.is_null() {
-        let mut repo = *_repo;
-    }
-    0
-}
-
 
 // Skip reading config for now.
 fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Result<Vec<OsRepo>> {
@@ -166,7 +156,7 @@ fn setup_repos(arch: &str, conf_file: &str, pool_context: &PoolContext) -> Resul
     {
         let mut pool = pool_context.borrow_mut();
         pool.set_arch(arch);
-        pool.set_loadcallback(loadcallback);
+        pool.set_loadcallback(|d| println!("Callback working!"));
     }
 
     println!("{:?}", &m);

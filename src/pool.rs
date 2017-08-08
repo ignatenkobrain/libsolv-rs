@@ -2,11 +2,12 @@ use std::cell::{RefCell, Ref, RefMut};
 use std::rc::Rc;
 use libsolv_sys::{Pool as PoolT, _Pool, _Repodata};
 use ::solver::Solver;
-use ::repo::Repo;
+use ::repo::{Repo, RepoDataRef};
 use std::ffi::CString;
 use ::transaction::Transaction;
 use std::marker::PhantomData;
 use std::ptr;
+use std::mem;
 use libc;
 
 pub struct PoolContext {
@@ -44,15 +45,20 @@ impl PoolContext {
 
 }
 
+pub type LoadCallback = Option<Box<Fn(RepoDataRef)>>;
 
 pub struct Pool {
     pub _p: *mut PoolT,
+    callback: Box<LoadCallback>
 }
 
 impl Pool {
     fn new() -> Pool {
-        use libsolv_sys::pool_create;
-        Pool { _p: unsafe {pool_create()} }
+        use libsolv_sys::{pool_create, pool_setdebuglevel};
+        let p = Pool { _p: unsafe {pool_create()}, callback: Box::new(None) };
+        unsafe {pool_setdebuglevel(p._p, 4)};
+        p
+
     }
 
     pub fn set_arch(&mut self, arch: &str) { ;
@@ -64,12 +70,25 @@ impl Pool {
     pub fn clear_loadcallback(&mut self) {
         use libsolv_sys::pool_setloadcallback;
         unsafe {pool_setloadcallback(self._p, None, ptr::null_mut())};
+        mem::replace(self.callback.as_mut(), None);
     }
 
-    pub fn set_loadcallback(&mut self, cb: unsafe extern "C" fn(_: *mut _Pool, _: *mut _Repodata, _: *mut libc::c_void) -> libc::c_int) {
+    pub fn set_loadcallback<F: 'static + Fn(RepoDataRef)>(&mut self, cb: F) {
         use libsolv_sys::pool_setloadcallback;
-        unsafe {pool_setloadcallback(self._p, Some(cb), ptr::null_mut())};
+        mem::replace(self.callback.as_mut(), Some(Box::new(cb)));
+        let cb_ptr = &mut *self.callback as *mut LoadCallback as *mut libc::c_void;
+        unsafe {pool_setloadcallback(self._p, Some(loadcallback), cb_ptr)};
     }
+}
+
+unsafe extern "C" fn loadcallback(_p: *mut _Pool, _rd: *mut _Repodata, _d: *mut libc::c_void) -> libc::c_int {
+    let cb = _d as *const LoadCallback;
+    println!("Entering callback function");
+    if let Some(ref function) = *cb {
+        let b = RepoDataRef{};
+        function(b);
+    };
+    0
 }
 
 impl Drop for Pool {

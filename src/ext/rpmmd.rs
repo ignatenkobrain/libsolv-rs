@@ -25,6 +25,7 @@ impl RpmMd for Repo {
         let borrow = self.ctx.borrow_mut();
         unsafe {
             let r = repo_add_repomdxml(self._r, file._fp, 0);
+            println!("r: {}", r);
             r == 0
         }
     }
