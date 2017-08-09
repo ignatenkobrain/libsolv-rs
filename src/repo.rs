@@ -226,7 +226,10 @@ impl<'a> DataPos<'a> {
         println!("Made it into function: {:?}", self);
 
                 //TODO: Errors right here.
-                let ref mut pool = unsafe{*(*(self._dp).repo).pool};
+        let repo = unsafe{&mut *self._dp.repo};
+        // ERROR: If the following line is uncommented previous instructions will fail
+        // let pool = unsafe {&mut *repo.pool};
+                //let ref mut pool = unsafe{*(*(self._dp).repo).pool};
         /*
                 println!("deref pool.");
                 let old_pos = pool.pos;
