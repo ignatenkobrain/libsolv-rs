@@ -65,19 +65,19 @@ impl BaseRepo {
         di.prepend_keyname(solv_knownid::REPOSITORY_REPOMD);
         println!("Created di");
         for mut d in di {
-            println!(" Iter di");
+            println!(" Iter di: {}", &d);
             //TODO: about to try regular pos?
+            println!("Looking up parent pos");
             let mut dp = d.parent_pos();
-
-            println!("Looked up parent pos");
-
+            println!("DP after return: {:?}", dp);
             let chksum = dp.lookup_checksum(solv_knownid::REPOSITORY_REPOMD_CHECKSUM as Id);
-            println!("Looked up checksum");
-            let filename = dp.lookup_str(solv_knownid::REPOSITORY_REPOMD_LOCATION as Id);
+                        //println!("Looked up checksum");
+            /*
+                let filename = dp.lookup_str(solv_knownid::REPOSITORY_REPOMD_LOCATION as Id);
 
-            println!("Looked up str");
+                println!("Looked up str");
 
-            println!("How'd it go? {:?}, {:?}", filename, chksum.map(|c| c.into_boxed_slice()) );
+                println!("How'd it go? {:?}, {:?}", filename, chksum.map(|c| c.into_boxed_slice()) );*/
         }
 
         Ok(BaseRepo{name: name, base_url: base_url.to_path_buf()})
