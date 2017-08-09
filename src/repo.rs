@@ -225,8 +225,8 @@ impl<'a> DataPos<'a> {
         use libsolv_sys::{SOLVID_POS, pool_lookup_bin_checksum, solv_chksum_create_from_bin};
         println!("Made it into function: {:?}", self);
 
-                //TODO: Errors right here.
         let repo = unsafe{&mut *self._dp.repo};
+        //TODO: Incorrect state encountered when uncommenting the next line.
         //println!("repo : {:?}", repo.pool);
         // ERROR: If the following line is uncommented previous instructions will fail
         // let pool = unsafe {&mut *repo.pool};
