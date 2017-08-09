@@ -24,7 +24,7 @@ fn main() {
     //pkg_config::probe_library("libsolvext").unwrap();
 
     // Direct Cargo to link the libsolv library
-    println!("cargo:rustc-link-lib=solv");
+    pkg_config::probe_library("libsolv").unwrap();
 
     let bindings = bindgen::Builder::default()
         // The input header we would like to generate

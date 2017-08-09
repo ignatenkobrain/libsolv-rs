@@ -10,7 +10,7 @@ fn main() {
 
     //pkg_config::probe_library("libsolvext").unwrap();
 
-    println!("cargo:rustc-link-lib=solvext");
+    pkg_config::probe_library("libsolvext").unwrap();
 
 
     // The bindgen::Builder is the main entry point
