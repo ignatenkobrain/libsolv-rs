@@ -226,9 +226,9 @@ impl<'a> DataPos<'a> {
         println!("Made it into function: {:?}", self);
 
         let repo = unsafe{&mut *self._dp.repo};
-        //TODO: Incorrect state encountered when uncommenting the next line.
+        //ERROR: Incorrect state encountered when uncommenting the next line.
         //println!("repo : {:?}", repo.pool);
-        // ERROR: If the following line is uncommented previous instructions will fail
+
         // let pool = unsafe {&mut *repo.pool};
                 //let ref mut pool = unsafe{*(*(self._dp).repo).pool};
         /*

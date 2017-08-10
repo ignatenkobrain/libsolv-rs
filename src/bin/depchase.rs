@@ -36,7 +36,9 @@ impl BaseRepo {
         let name = name.into();
         let base_url = base_url.as_ref();
 
-        let mut repomd_path = base_url.join("repodata/repomd.xml");
+        //REPRODUCER EDIT
+
+        let mut repomd_path = Path::new("./reproducer_files/repomd.xml");
 
         // Analyze the repomd.xml
         let mut repomd = SolvFile::open(&repomd_path)?;
