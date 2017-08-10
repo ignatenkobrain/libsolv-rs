@@ -39,3 +39,8 @@ required-features = ["tools", "ext"]
 name = "depchase"
 path = "src/bin/depchase.rs"
 required-features = ["tools", "rpmmd"]
+
+[[bin]]
+name = "reproducer"
+path = "src/bin/reproducer.rs"
+required-features = ["tools", "rpmmd"]
