@@ -46,9 +46,10 @@ impl Repo {
 
 impl Drop for Repo {
     fn drop(&mut self) {
-        use libsolv_sys::repo_freedata;
+        // TODO: Critical! repo_freedata doesn't exist on Fedora??
+        //use libsolv_sys::repo_freedata;
         let borrow = self.ctx.borrow_mut();
-        unsafe{repo_freedata(self._r)}
+        //unsafe{repo_freedata(self._r)}
     }
 }
 
