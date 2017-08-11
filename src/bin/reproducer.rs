@@ -34,6 +34,7 @@ use libsolv_sys::dataiterator_prepend_keyname;
 use libsolv_sys::dataiterator_step;
 use libsolv_sys::{dataiterator_init_clone, dataiterator_strdup};
 use libsolv_sys::dataiterator_setpos_parent;
+use libsolv_sys::Datapos;
 use libsolv_sys::{SOLVID_POS, pool_lookup_str, pool_lookup_bin_checksum, solv_chksum_create_from_bin};
 use libsolv_sys::repodata_set_str;
 use libsolv_sys::repodata_set_bin_checksum;
@@ -192,6 +193,18 @@ impl RepoHandle {
     pub fn add_repomd(&mut self, repomd_file: &mut FileHandle) {
         unsafe{repo_add_rpmmd(self.repo, repomd_file.as_ptr(), ptr::null(), 0)};
     }
+
+    pub fn build_meta_iterator(&self) -> DataIteratorBuilder {
+        DataIteratorBuilder{
+            pool: self.pool_rc.borrow_mut(),
+            repo: &self,
+            p: SOLVID_META as Id,
+            key: None,
+            what: None,
+            flags: None,
+            prepend_keyname: None
+        }
+    }
 }
 
 impl Drop for RepoHandle {
@@ -201,11 +214,186 @@ impl Drop for RepoHandle {
     }
 }
 
-pub struct DataIterator {
-
+pub struct DataIteratorBuilder<'a> {
+    pool: RefMut<'a, PoolHandle>,
+    repo: &'a RepoHandle,
+    p: Id,
+    key: Option<Id>,
+    what: Option<CString>,
+    flags: Option<Id>,
+    prepend_keyname: Option<Id>
 }
 
-fn find(pool: &mut PoolHandle, repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chksum>){
+impl<'a> DataIteratorBuilder<'a> {
+
+    pub fn set_key(mut self, key: solv_knownid) -> Self{
+        self.key = Some(key as Id);
+        self
+    }
+
+    pub fn set_search_string<S: AsRef<str>>(mut self, what: S) -> Self {
+        let cstr_what = CString::new(what.as_ref()).unwrap();
+        self.what = Some(cstr_what);
+        self.flags = Some(SEARCH_STRING as Id);
+        self
+    }
+
+    pub fn set_prepend_keyname(mut self, prepend_keyname: solv_knownid) -> Self {
+        self.prepend_keyname = Some(prepend_keyname as Id);
+        self
+    }
+
+    pub fn build(self) -> RepoDataIterator<'a> {
+        let pool = self.pool;
+        let repo = self.repo;
+        let p = self.p;
+        let key = self.key.unwrap() as Id;
+        let what = self.what.unwrap();
+        let flags = self.flags.unwrap();
+
+        let di = unsafe {
+            let mut di = mem::uninitialized();
+            dataiterator_init(&mut di, pool.as_ptr(), repo.as_ptr(), p, key, what.as_ptr(), flags);
+            if let Some(prepend_keyname) = self.prepend_keyname {
+                dataiterator_prepend_keyname(&mut di, prepend_keyname);
+            }
+            di
+        };
+
+        RepoDataIterator{
+            pool: pool,
+            repo: repo,
+            di: di,
+            what: what
+        }
+    }
+}
+
+pub struct RepoDataIterator<'a> {
+    pool: RefMut<'a, PoolHandle>,
+    repo: &'a RepoHandle,
+    di: Dataiterator,
+    what: CString
+}
+
+impl<'a> Drop for RepoDataIterator<'a> {
+    fn drop(&mut self) {
+        unsafe{dataiterator_free(&mut self.di)};
+    }
+}
+
+impl<'a> Iterator for RepoDataIterator<'a> {
+    type Item = RepoDataMatch<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if unsafe {dataiterator_step(&mut self.di) } == 0 {
+            None
+        } else {
+            let ndi = unsafe {
+                let mut ndi = mem::uninitialized();
+                dataiterator_init_clone(&mut ndi, &mut self.di);
+                dataiterator_strdup(&mut ndi);
+                ndi
+            };
+            Some(RepoDataMatch{repo: self.repo, ndi: ndi})
+        }
+    }
+}
+
+pub struct RepoDataMatch<'a> {
+    repo: &'a RepoHandle,
+    ndi: Dataiterator,
+}
+
+impl<'a> RepoDataMatch<'a> {
+    pub fn parent_pos(&mut self) -> RepoDataPos {
+        let _pool: &mut _Pool = unsafe { &mut *self.ndi.pool };
+        let old_pos = _pool.pos;
+        unsafe { dataiterator_setpos_parent(&mut self.ndi) };
+        let pos = _pool.pos;
+        _pool.pos = old_pos;
+        println!("parent pos: {:?}", &pos);
+        RepoDataPos{repo: self.repo, pos: pos}
+    }
+}
+
+impl<'a> Drop for RepoDataMatch<'a> {
+    fn drop(&mut self) {
+        unsafe{dataiterator_free(&mut self.ndi)};
+    }
+}
+
+pub struct RepoDataPos<'a> {
+    repo: &'a RepoHandle,
+    pos: Datapos
+}
+
+impl<'a> RepoDataPos<'a> {
+
+    pub fn location(&self) -> Option<CString> {
+        let repo: &mut Repo = unsafe {&mut *self.pos.repo};
+        let _pool: &mut _Pool = unsafe{&mut *repo.pool};
+        println!("pos: {:?}", self.pos);
+        let old_pos = _pool.pos;
+        println!("pool: {:?}", _pool);
+        _pool.pos = self.pos;
+        println!("pool_after: {:?}", _pool);
+        let cstr = unsafe {pool_lookup_str(_pool, SOLVID_POS, solv_knownid::REPOSITORY_REPOMD_LOCATION as Id)};
+        _pool.pos = old_pos;
+        if cstr.is_null() {
+            None
+        } else {
+            unsafe {
+                let len = libc::strlen(cstr);
+                let slice = slice::from_raw_parts(cstr as *const libc::c_uchar, len as usize);
+                CString::new(slice).ok()
+            }
+        }
+    }
+
+    pub fn checksum(&self) -> Option<*mut _Chksum> {
+        let repo: &mut Repo = unsafe {&mut *self.pos.repo};
+        let _pool: &mut _Pool = unsafe{&mut *repo.pool};
+        let old_pos = _pool.pos;
+        _pool.pos = self.pos;
+        let mut type_id = 0;
+        let b = unsafe {pool_lookup_bin_checksum(_pool, SOLVID_POS, solv_knownid::REPOSITORY_REPOMD_CHECKSUM as Id, &mut type_id)};
+        _pool.pos = old_pos;
+        let _c = unsafe {solv_chksum_create_from_bin(type_id, b)};
+        if _c.is_null() {
+            None
+        } else {
+            Some(_c)
+        }
+    }
+}
+
+fn find_ub(repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chksum>){
+    let mut lookup_cstr = None;
+    let mut lookup_chksum = None;
+
+    let mut di = repo.build_meta_iterator()
+        .set_key(solv_knownid::REPOSITORY_REPOMD_TYPE)
+        .set_search_string(what)
+        .set_prepend_keyname(solv_knownid::REPOSITORY_REPOMD)
+        .build();
+
+    for mut repo_match in di {
+        println!("loop!");
+        let parent_pos = repo_match.parent_pos();
+        lookup_cstr = parent_pos.location();
+        println!("cstr: {:?}", lookup_cstr);
+        lookup_chksum = parent_pos.checksum();
+        println!("chksum: {:?}", lookup_chksum);
+        if lookup_cstr.is_some() {
+            break;
+        }
+    }
+    (lookup_cstr, lookup_chksum)
+}
+
+
+fn find_no_ub(pool: &mut PoolHandle, repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chksum>){
     let what = CString::new(what)
         .unwrap();
     let mut lookup_cstr = None;
@@ -320,32 +508,27 @@ fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path
     let mut repomdstr = base_path.as_ref().to_owned();
     repomdstr.push_str("/repodata/repomd.xml");
 
-    // Load the repomd.xml
-
+    // open the repomd.xml
     let mut repomdxml_file = FileHandle::xf_open(&repomdstr);
 
-    // Create the repo & load the repomd
+    // Create the repo & load the repomdxml
     let mut repo = pool_context.create_repo(repo_name);
-
     repo.add_repomdxml(&mut repomdxml_file);
-
-    {
-        let repo_ref = unsafe {&mut * repo.as_ptr()};
-        repo_ref.appdata = unsafe{repo.as_ptr()} as *mut libc::c_void;
-    }
-
 
     // Search for the primary entry
 
     let(option_cstr, option_chksum) = {
         let mut borrow = pool_context.borrow_mut();
-        find(&mut borrow, &repo, "primary")
+        find_no_ub(&mut borrow, &repo, "primary")
     };
 
+
+    //let(option_cstr, option_chksum) = find(&repo, "primary");
+
     let repo_md_chksum = option_chksum
-        .expect("Expected checksum");
+        .expect("Expected primary checksum");
     let repo_md_name = option_cstr
-        .expect("Expected name");
+        .expect("Expected primary name");
 
     // Load the primary entry
     let mut repo_file_buf = PathBuf::new();
@@ -365,8 +548,11 @@ fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path
 
     let(option_cstr, option_chksum) = {
         let mut borrow = pool_context.borrow_mut();
-        find(&mut borrow, &repo, "filelists")
+        find_no_ub(&mut borrow, &repo, "filelists")
     };
+
+
+    //let(option_cstr, option_chksum) = find(&repo, "filelists");
 
     let filelists_chksum = option_chksum
         .expect("Expected checksum");
