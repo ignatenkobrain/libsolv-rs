@@ -247,9 +247,11 @@ impl<'a> DataIteratorBuilder<'a> {
         let pool = self.pool;
         let repo = self.repo;
         let p = self.p;
-        let key = self.key.unwrap() as Id;
+        let key = self.key.unwrap();
         let what = self.what.unwrap();
         let flags = self.flags.unwrap();
+
+        println!("what: {:?}", what.as_ptr());
 
         let di = unsafe {
             let mut di = mem::uninitialized();
@@ -333,11 +335,8 @@ impl<'a> RepoDataPos<'a> {
     pub fn location(&self) -> Option<CString> {
         let repo: &mut Repo = unsafe {&mut *self.pos.repo};
         let _pool: &mut _Pool = unsafe{&mut *repo.pool};
-        println!("pos: {:?}", self.pos);
         let old_pos = _pool.pos;
-        println!("pool: {:?}", _pool);
         _pool.pos = self.pos;
-        println!("pool_after: {:?}", _pool);
         let cstr = unsafe {pool_lookup_str(_pool, SOLVID_POS, solv_knownid::REPOSITORY_REPOMD_LOCATION as Id)};
         _pool.pos = old_pos;
         if cstr.is_null() {
@@ -378,11 +377,13 @@ fn find_ub(repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chks
         .set_prepend_keyname(solv_knownid::REPOSITORY_REPOMD)
         .build();
 
-    for mut repo_match in di {
+    println!("what: {:?}", di.what.as_ptr());
+
+    for mut repo_match in &mut di {
         println!("loop!");
         let parent_pos = repo_match.parent_pos();
         lookup_cstr = parent_pos.location();
-        println!("cstr: {:?}", lookup_cstr);
+        println!("location: {:?}", lookup_cstr);
         lookup_chksum = parent_pos.checksum();
         println!("chksum: {:?}", lookup_chksum);
         if lookup_cstr.is_some() {
@@ -523,7 +524,8 @@ fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path
     };
 
 
-    //let(option_cstr, option_chksum) = find(&repo, "primary");
+
+    let(option_cstr_2, option_chksum_2) = find_ub(&repo, "primary");
 
     let repo_md_chksum = option_chksum
         .expect("Expected primary checksum");
