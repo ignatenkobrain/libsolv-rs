@@ -11,6 +11,8 @@ use std::mem;
 use std::slice;
 use std::path::{Path, PathBuf};
 use libsolv::chksum::Chksum;
+use std::cell::{RefCell, Ref, RefMut};
+use std::rc::Rc;
 
 use libc::FILE;
 
@@ -53,27 +55,157 @@ use libsolv_sys::queue_free;
 use libsolv_sys::solver_create;
 use libsolv_sys::solver_free;
 use libsolv_sys::solv_chksum_free;
+use libsolv_sys::REPODATA_STUB;
 
 pub type LoadCallback = Option<Box<Fn(_Repodata)>>;
 
-fn xf_open(path: &CStr, file: &File) -> *mut FILE {
-    let fd = file.as_raw_fd();
-    unsafe {
-        let new_fd = libc::dup(fd);
-        if fd == -1 {
-            panic!("unable to dup {:?}", file);
-        }
-        libc::fcntl(new_fd, libc::F_SETFD, libc::FD_CLOEXEC);
-        let fp = solv_xfopen_fd(path.as_ptr(), fd, ptr::null());
-        if fp.is_null() {
-            libc::close(fd);
-            panic!("Unable to open fd {:?}", file);
-        }
-        fp
+pub struct PoolContext {
+    pool_rc: Rc<RefCell<PoolHandle>>,
+}
+
+impl PoolContext {
+    pub fn new() -> PoolContext {
+        PoolContext {pool_rc: Rc::new(RefCell::new(PoolHandle::new()))}
+    }
+
+    pub fn create_repo<S: AsRef<str>>(&self, name: S) -> RepoHandle {
+        RepoHandle::new_with_context(self.pool_rc.clone(), name)
+    }
+
+    pub fn borrow(&self) -> Ref<PoolHandle> {
+        self.pool_rc.borrow()
+    }
+
+    pub fn borrow_mut(&self) -> RefMut<PoolHandle> {
+        self.pool_rc.borrow_mut()
     }
 }
 
-fn find(pool: *mut Pool, repo: *mut Repo, what: &str) -> (Option<CString>, Option<*mut _Chksum>){
+pub struct PoolHandle {
+    pool: *mut Pool,
+    arch: Option<CString>,
+    callback: Box<LoadCallback>
+}
+
+impl PoolHandle {
+    fn new() -> PoolHandle {
+        PoolHandle { pool: unsafe {pool_create()}, arch: None, callback: Box::new(None) }
+    }
+
+    pub fn clear_loadcallback(&mut self) {
+        unsafe {pool_setloadcallback(self.pool, None, ptr::null_mut())};
+        mem::replace(self.callback.as_mut(), None);
+    }
+
+    pub fn set_loadcallback<F: 'static + Fn(_Repodata)>(&mut self, cb: F) {
+        use libsolv_sys::pool_setloadcallback;
+        mem::replace(self.callback.as_mut(), Some(Box::new(cb)));
+        let cb_ptr = &mut *self.callback as *mut LoadCallback as *mut libc::c_void;
+        unsafe {pool_setloadcallback(self.pool, Some(loadcallback), cb_ptr)};
+    }
+
+    pub fn set_arch<S: AsRef<str>>(&mut self, arch: S) {
+        self.arch = Some(CString::new(arch.as_ref()).unwrap());
+    }
+
+    pub fn set_debuglevel(&mut self, level: i32) {
+        unsafe {pool_setdebuglevel(self.pool, level)};
+    }
+
+    pub unsafe fn as_ptr(&self) -> *mut Pool {
+        self.pool
+    }
+}
+
+impl Drop for PoolHandle {
+    fn drop(&mut self) {
+        unsafe { pool_free(self.pool)}
+    }
+}
+
+#[derive(Debug)]
+pub struct FileHandle {
+    path: CString,
+    file: File,
+    pub fp: *mut FILE
+}
+
+impl FileHandle {
+    pub fn xf_open<P: AsRef<Path>>(path: P) -> FileHandle {
+        let cstring_path = CString::new(path.as_ref().to_str().unwrap())
+            .unwrap();
+        let file = File::open(path)
+            .expect("unable to find file");
+        let fd = file.as_raw_fd();
+        let fp = unsafe {
+            let new_fd = libc::dup(fd);
+            if fd == -1 {
+                panic!("unable to dup {:?}", file);
+            }
+            libc::fcntl(new_fd, libc::F_SETFD, libc::FD_CLOEXEC);
+            let fp = solv_xfopen_fd(cstring_path.as_ptr(), fd, ptr::null());
+            if fp.is_null() {
+                libc::close(fd);
+                panic!("Unable to open fd {:?}", file);
+            }
+            fp
+        };
+        FileHandle{path: cstring_path, file: file, fp: fp}
+    }
+
+    pub unsafe fn as_ptr(&self) -> *mut FILE {
+        self.fp
+    }
+}
+
+impl Drop for FileHandle {
+    fn drop(&mut self) {
+        unsafe{libc::fclose(self.fp)};
+    }
+}
+
+pub struct RepoHandle {
+    pool_rc: Rc<RefCell<PoolHandle>>,
+    name: CString,
+    repo: *mut Repo,
+}
+
+impl RepoHandle {
+    pub fn new_with_context<S: AsRef<str>>(pool_rc: Rc<RefCell<PoolHandle>>, name: S) -> RepoHandle {
+        let cstr_name = CString::new(name.as_ref())
+            .unwrap();
+        let repo = {
+            let borrow = pool_rc.borrow_mut();
+            unsafe{repo_create(borrow.as_ptr(), cstr_name.as_ptr())}
+        };
+        RepoHandle{pool_rc: pool_rc, name: cstr_name, repo: repo}
+    }
+
+    pub unsafe fn as_ptr(&self) -> *mut Repo {
+        self.repo
+    }
+
+    pub fn add_repomdxml(&mut self, repomdxml_file: &mut FileHandle) {
+        unsafe {repo_add_repomdxml(self.repo, repomdxml_file.as_ptr(), 0)};
+    }
+
+    pub fn add_repomd(&mut self, repomd_file: &mut FileHandle) {
+        unsafe{repo_add_rpmmd(self.repo, repomd_file.as_ptr(), ptr::null(), 0)};
+    }
+}
+
+impl Drop for RepoHandle {
+    fn drop(&mut self) {
+        let borrow = self.pool_rc.borrow_mut();
+        unsafe{repo_free(self.repo, 0)};
+    }
+}
+
+pub struct DataIterator {
+
+}
+
+fn find(pool: &mut PoolHandle, repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chksum>){
     let what = CString::new(what)
         .unwrap();
     let mut lookup_cstr = None;
@@ -81,7 +213,7 @@ fn find(pool: *mut Pool, repo: *mut Repo, what: &str) -> (Option<CString>, Optio
 
     let mut di = unsafe {
         let mut di = mem::uninitialized();
-        dataiterator_init(&mut di, pool, repo,
+        dataiterator_init(&mut di, pool.as_ptr(), repo.as_ptr(),
                           SOLVID_META as Id, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, what.as_ptr(), SEARCH_STRING as Id);
         dataiterator_prepend_keyname(&mut di, solv_knownid::REPOSITORY_REPOMD as Id);
         di
@@ -154,26 +286,26 @@ fn find(pool: *mut Pool, repo: *mut Repo, what: &str) -> (Option<CString>, Optio
     (lookup_cstr, lookup_chksum)
 }
 
-fn updateaddedprovides(pool: *mut Pool, repo: *mut Repo, addwhatprovies: &mut Queue) {
-    let repo: &mut Repo = unsafe {&mut *repo};
-    let _pool: &mut _Pool = unsafe{&mut *repo.pool};
-    if repo.nsolvables == 0 {
+fn updateaddedprovides(pool: &mut PoolHandle, repo: &mut RepoHandle, addwhatprovies: &mut Queue) {
+    let repo_ref: &mut Repo = unsafe {&mut *repo.as_ptr()};
+    let _pool: &mut _Pool = unsafe{&mut *repo_ref.pool};
+    if repo_ref.nsolvables == 0 {
         println!("0 nsolvables");
         return;
     }
     //first_repodata()
-    if repo.nsolvables < 2 {
+    if repo_ref.nsolvables < 2 {
         println!("too few nsolvables");
         return;
     }
-    let mut repodate: &mut Repodata = unsafe{&mut *repo_id2repodata(repo, 1)};
+    let mut repodate: &mut Repodata = unsafe{&mut *repo_id2repodata(repo.as_ptr(), 1)};
     if repodate.loadcallback.is_some() {
         println!("loadcallback found on 1st repodata");
         return
     }
 
-    for i in 2..repo.nsolvables {
-        repodate = unsafe{&mut *repo_id2repodata(repo, i)};
+    for i in 2..repo_ref.nsolvables {
+        repodate = unsafe{&mut *repo_id2repodata(repo.as_ptr(), i)};
         if repodate.loadcallback.is_none() {
             println!("loadcallback not found on repodata {}", i);
             return
@@ -183,31 +315,32 @@ fn updateaddedprovides(pool: *mut Pool, repo: *mut Repo, addwhatprovies: &mut Qu
 
 }
 
-fn load_repo<P: AsRef<str>>(pool: *mut Pool, base_path: P) {
+fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path: P) -> RepoHandle {
 
     let mut repomdstr = base_path.as_ref().to_owned();
     repomdstr.push_str("/repodata/repomd.xml");
 
     // Load the repomd.xml
-    let repo_cstr_path = CString::new(repomdstr.clone())
-        .unwrap();
-    let repomd_file = File::open(repomdstr)
-        .unwrap();
-    // Get the file pointer for repomd.xml
-    let repomd_fp = xf_open(&repo_cstr_path,&repomd_file);
+
+    let mut repomdxml_file = FileHandle::xf_open(&repomdstr);
 
     // Create the repo & load the repomd
-    let repo_name = CString::new("reproducer")
-        .unwrap();
-    let repo = unsafe{repo_create(pool, repo_name.as_ptr())};
-    unsafe {repo_add_repomdxml(repo, repomd_fp, 0)};
+    let mut repo = pool_context.create_repo(repo_name);
 
-    // Close repomd_fp
-    unsafe{libc::fclose(repomd_fp)};
+    repo.add_repomdxml(&mut repomdxml_file);
+
+    {
+        let repo_ref = unsafe {&mut * repo.as_ptr()};
+        repo_ref.appdata = unsafe{repo.as_ptr()} as *mut libc::c_void;
+    }
+
 
     // Search for the primary entry
 
-    let(option_cstr, option_chksum) = find(pool, repo, "primary");
+    let(option_cstr, option_chksum) = {
+        let mut borrow = pool_context.borrow_mut();
+        find(&mut borrow, &repo, "primary")
+    };
 
     let repo_md_chksum = option_chksum
         .expect("Expected checksum");
@@ -218,20 +351,23 @@ fn load_repo<P: AsRef<str>>(pool: *mut Pool, base_path: P) {
     let mut repo_file_buf = PathBuf::new();
     repo_file_buf.push(base_path.as_ref());
     repo_file_buf.push(repo_md_name.to_str().unwrap());
-    let repo_file = File::open(repo_file_buf)
-        .unwrap();
 
-    let repo_fd = xf_open(&repo_md_name, &repo_file);
-    unsafe{repo_add_rpmmd(repo, repo_fd, ptr::null(), 0)};
-    unsafe{libc::fclose(repo_fd)};
+    let mut repomd_file = FileHandle::xf_open(repo_file_buf);
+
+
+    repo.add_repomd(&mut repomd_file);
 
     // add_exts
     let mut repodata_id = {
-        let rd = unsafe {& *repo_add_repodata(repo, 0)};
+        let rd = unsafe {& *repo_add_repodata(repo.as_ptr(), 0)};
         rd.repodataid
     };
 
-    let(option_cstr, option_chksum) = find(pool, repo, "filelists");
+    let(option_cstr, option_chksum) = {
+        let mut borrow = pool_context.borrow_mut();
+        find(&mut borrow, &repo, "filelists")
+    };
+
     let filelists_chksum = option_chksum
         .expect("Expected checksum");
     let filelists_name = option_cstr
@@ -239,38 +375,51 @@ fn load_repo<P: AsRef<str>>(pool: *mut Pool, base_path: P) {
 
     let filelists_cstr = CString::new("filelists").unwrap();
     unsafe {
-        let repomd_handle = repodata_new_handle(repo_id2repodata(repo, repodata_id));
-        repodata_set_poolstr(repo_id2repodata(repo, repodata_id), repomd_handle, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, filelists_cstr.as_ptr());
-        repodata_set_str(repo_id2repodata(repo, repodata_id), repomd_handle, solv_knownid::REPOSITORY_REPOMD_LOCATION as Id, filelists_name.as_ptr());
+        let repomd_handle = repodata_new_handle(repo_id2repodata(repo.as_ptr(), repodata_id));
+        repodata_set_poolstr(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, filelists_cstr.as_ptr());
+        repodata_set_str(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_REPOMD_LOCATION as Id, filelists_name.as_ptr());
         let chksum_buf = solv_chksum_get(filelists_chksum, ptr::null_mut());
-        repodata_set_bin_checksum(repo_id2repodata(repo, repodata_id), repomd_handle, solv_knownid::REPOSITORY_REPOMD_CHECKSUM as Id, solv_chksum_get_type(filelists_chksum), chksum_buf);
-        repodata_add_idarray(repo_id2repodata(repo, repodata_id), repomd_handle, solv_knownid::REPOSITORY_KEYS as Id, solv_knownid::SOLVABLE_FILELIST as Id);
-        repodata_add_idarray(repo_id2repodata(repo, repodata_id), repomd_handle, solv_knownid::REPOSITORY_KEYS as Id, solv_knownid::REPOKEY_TYPE_DIRSTRARRAY as Id);
-        repodata_add_flexarray(repo_id2repodata(repo, repodata_id), SOLVID_META, solv_knownid::REPOSITORY_EXTERNAL as Id, repomd_handle);
-        repodata_internalize(repo_id2repodata(repo, repodata_id));
-        let mut data = repo_id2repodata(repo, repodata_id);
-        let ref_data = &*repodata_create_stubs(data);
-        repodata_id = ref_data.repodataid;
-    }
+        repodata_set_bin_checksum(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_REPOMD_CHECKSUM as Id, solv_chksum_get_type(filelists_chksum), chksum_buf);
+        repodata_add_idarray(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_KEYS as Id, solv_knownid::SOLVABLE_FILELIST as Id);
+        repodata_add_idarray(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_KEYS as Id, solv_knownid::REPOKEY_TYPE_DIRSTRARRAY as Id);
+        repodata_add_flexarray(repo_id2repodata(repo.as_ptr(), repodata_id), SOLVID_META, solv_knownid::REPOSITORY_EXTERNAL as Id, repomd_handle);
+        repodata_internalize(repo_id2repodata(repo.as_ptr(), repodata_id));
 
-    unsafe {
         solv_chksum_free(filelists_chksum, ptr::null_mut());
     }
 
-    //addedprovides = pool.addfileprovides_queue()
-    let mut whatprovides_queue = unsafe{
-        let mut queue =  mem::uninitialized();
-        queue_init(&mut queue);
-        pool_addfileprovides_queue(pool, &mut queue, ptr::null_mut());
-        queue
-    };
+    // create stubs
+    unsafe {
+        let repo_ref = unsafe{&*repo.as_ptr()};
+        if repo_ref.nrepodata != 0 {
+            let  data = repo_id2repodata(repo.as_ptr(), repo_ref.nrepodata - 1);
+        }
+        let data = &mut *repo_id2repodata(repo.as_ptr(), repodata_id);
+        if data.state != REPODATA_STUB as i32 {
+            repodata_create_stubs(data);
+        }
+    }
 
-    updateaddedprovides(pool, repo, &mut whatprovides_queue);
-    unsafe {queue_free(&mut whatprovides_queue)};
 
-    unsafe{pool_createwhatprovides(pool)};
+    {
+        let mut borrow = pool_context.borrow_mut();
 
-    unsafe{repo_free(repo, 0)};
+        //addedprovides = pool.addfileprovides_queue()
+        let mut whatprovides_queue = unsafe{
+            let mut queue =  mem::uninitialized();
+            queue_init(&mut queue);
+            pool_addfileprovides_queue(borrow.as_ptr(), &mut queue, ptr::null_mut());
+            queue
+        };
+
+        updateaddedprovides(&mut borrow, &mut repo, &mut whatprovides_queue);
+        unsafe {queue_free(&mut whatprovides_queue)};
+        unsafe{pool_createwhatprovides(borrow.as_ptr())};
+    }
+
+
+
+    repo
 }
 
 fn box_callback<F: 'static + Fn(Repodata)>(cb: F) -> Box<LoadCallback> {
@@ -288,22 +437,23 @@ unsafe extern "C" fn loadcallback(_p: *mut _Pool, _rd: *mut _Repodata, _d: *mut 
 
 fn main() {
     // Create the pool
-    let pool = unsafe{pool_create()};
-    unsafe{pool_setdebuglevel(pool, 2)};
-    // Set the pool arch
-    let arch = CString::new("x86_64").unwrap();
-    let mut callback = box_callback(|_| println!("loadsuccess."));
-    unsafe{
-        pool_setarch(pool, arch.as_ptr());
-        let cb_ptr = &mut *callback as *mut LoadCallback as *mut libc::c_void;
-        pool_setloadcallback(pool, Some(loadcallback), cb_ptr)
 
-    };
+    let pool_context = PoolContext::new();
 
-    load_repo(pool, "/Users/abaxter/Projects/fedora-modularity/depchase/repos/rawhide/x86_64/os");
+    {
+        let mut pool = pool_context.borrow_mut();
+        pool.set_debuglevel(2);
+        pool.set_loadcallback(|_| println!("loadsuccess."));
+        pool.set_arch("x86_64");
+    }
 
-    let solver = unsafe {solver_create(pool)};
-    // left off at creating solver
-    unsafe{solver_free(solver)};
-    unsafe{pool_free(pool)};
+    load_repo(&pool_context, "os", "/Users/abaxter/Projects/fedora-modularity/depchase/repos/rawhide/x86_64/os");
+    load_repo(&pool_context, "source", "/Users/abaxter/Projects/fedora-modularity/depchase/repos/rawhide/x86_64/sources");
+
+    {
+        let mut pool = pool_context.borrow_mut();
+        let solver = unsafe { solver_create(pool.as_ptr()) };
+        // left off at creating solver
+        unsafe { solver_free(solver) };
+    }
 }
