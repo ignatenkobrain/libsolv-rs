@@ -251,13 +251,11 @@ impl<'a> DataIteratorBuilder<'a> {
         let what = self.what.unwrap();
         let flags = self.flags.unwrap();
 
-        println!("what: {:?}", what.as_ptr());
-
         let di = unsafe {
-            let mut di = mem::uninitialized();
-            dataiterator_init(&mut di, pool.as_ptr(), repo.as_ptr(), p, key, what.as_ptr(), flags);
+            let mut di = Box::new(mem::uninitialized());
+            dataiterator_init(&mut *di, pool.as_ptr(), repo.as_ptr(), p, key, what.as_ptr(), flags);
             if let Some(prepend_keyname) = self.prepend_keyname {
-                dataiterator_prepend_keyname(&mut di, prepend_keyname);
+                dataiterator_prepend_keyname(&mut *di, prepend_keyname);
             }
             di
         };
@@ -274,13 +272,13 @@ impl<'a> DataIteratorBuilder<'a> {
 pub struct RepoDataIterator<'a> {
     pool: RefMut<'a, PoolHandle>,
     repo: &'a RepoHandle,
-    di: Dataiterator,
+    di: Box<Dataiterator>,
     what: CString
 }
 
 impl<'a> Drop for RepoDataIterator<'a> {
     fn drop(&mut self) {
-        unsafe{dataiterator_free(&mut self.di)};
+        unsafe{dataiterator_free(&mut *self.di)};
     }
 }
 
@@ -288,15 +286,16 @@ impl<'a> Iterator for RepoDataIterator<'a> {
     type Item = RepoDataMatch<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if unsafe {dataiterator_step(&mut self.di) } == 0 {
+        if unsafe {dataiterator_step(&mut *self.di) } == 0 {
             None
         } else {
             let ndi = unsafe {
-                let mut ndi = mem::uninitialized();
-                dataiterator_init_clone(&mut ndi, &mut self.di);
-                dataiterator_strdup(&mut ndi);
+                let mut ndi = Box::new(mem::uninitialized());
+                dataiterator_init_clone(&mut *ndi, &mut *self.di);
+                dataiterator_strdup(&mut *ndi);
                 ndi
             };
+            //println!("ub ndi: {:?}", ndi);
             Some(RepoDataMatch{repo: self.repo, ndi: ndi})
         }
     }
@@ -304,24 +303,23 @@ impl<'a> Iterator for RepoDataIterator<'a> {
 
 pub struct RepoDataMatch<'a> {
     repo: &'a RepoHandle,
-    ndi: Dataiterator,
+    ndi: Box<Dataiterator>,
 }
 
 impl<'a> RepoDataMatch<'a> {
     pub fn parent_pos(&mut self) -> RepoDataPos {
         let _pool: &mut _Pool = unsafe { &mut *self.ndi.pool };
         let old_pos = _pool.pos;
-        unsafe { dataiterator_setpos_parent(&mut self.ndi) };
+        unsafe { dataiterator_setpos_parent(&mut *self.ndi) };
         let pos = _pool.pos;
         _pool.pos = old_pos;
-        println!("parent pos: {:?}", &pos);
         RepoDataPos{repo: self.repo, pos: pos}
     }
 }
 
 impl<'a> Drop for RepoDataMatch<'a> {
     fn drop(&mut self) {
-        unsafe{dataiterator_free(&mut self.ndi)};
+        unsafe{dataiterator_free(&mut *self.ndi)};
     }
 }
 
@@ -367,7 +365,7 @@ impl<'a> RepoDataPos<'a> {
     }
 }
 
-fn find_ub(repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chksum>){
+fn find(repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chksum>){
     let mut lookup_cstr = None;
     let mut lookup_chksum = None;
 
@@ -393,87 +391,6 @@ fn find_ub(repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chks
     (lookup_cstr, lookup_chksum)
 }
 
-
-fn find_no_ub(pool: &mut PoolHandle, repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chksum>){
-    let what = CString::new(what)
-        .unwrap();
-    let mut lookup_cstr = None;
-    let mut lookup_chksum = None;
-
-    let mut di = unsafe {
-        let mut di = mem::uninitialized();
-        dataiterator_init(&mut di, pool.as_ptr(), repo.as_ptr(),
-                          SOLVID_META as Id, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, what.as_ptr(), SEARCH_STRING as Id);
-        dataiterator_prepend_keyname(&mut di, solv_knownid::REPOSITORY_REPOMD as Id);
-        di
-    };
-
-    while unsafe{dataiterator_step(&mut di)} != 0 {
-        println!("loop!");
-        let mut ndi = unsafe {
-            let mut ndi = mem::uninitialized();
-            dataiterator_init_clone(&mut ndi, &mut di);
-            dataiterator_strdup(&mut ndi);
-            ndi
-        };
-
-        let pos = {
-            let _pool: &mut _Pool = unsafe { &mut *ndi.pool };
-            let old_pos = _pool.pos;
-            unsafe { dataiterator_setpos_parent(&mut ndi) };
-            let pos = _pool.pos;
-            _pool.pos = old_pos;
-
-            println!("pos: {:?}", &pos);
-            pos
-        };
-        lookup_cstr = {
-            let repo: &mut Repo = unsafe {&mut *pos.repo};
-            let _pool: &mut _Pool = unsafe{&mut *repo.pool};
-            let old_pos = _pool.pos;
-            _pool.pos = pos;
-            let cstr = unsafe {pool_lookup_str(_pool, SOLVID_POS, solv_knownid::REPOSITORY_REPOMD_LOCATION as Id)};
-            _pool.pos = old_pos;
-            if cstr.is_null() {
-                None
-            } else {
-                unsafe {
-                    let len = libc::strlen(cstr);
-                    let slice = slice::from_raw_parts(cstr as *const libc::c_uchar, len as usize);
-                    CString::new(slice).ok()
-                }
-            }
-        };
-        println!("cstr: {:?}", lookup_cstr);
-
-        lookup_chksum = {
-            let repo: &mut Repo = unsafe {&mut *pos.repo};
-            let _pool: &mut _Pool = unsafe{&mut *repo.pool};
-            let old_pos = _pool.pos;
-            _pool.pos = pos;
-            let mut type_id = 0;
-            let b = unsafe {pool_lookup_bin_checksum(_pool, SOLVID_POS, solv_knownid::REPOSITORY_REPOMD_CHECKSUM as Id, &mut type_id)};
-            _pool.pos = old_pos;
-            let _c = unsafe {solv_chksum_create_from_bin(type_id, b)};
-            if _c.is_null() {
-                None
-            } else {
-                Some(_c)
-            }
-        };
-        println!("chksum: {:?}", lookup_chksum);
-
-        unsafe{dataiterator_free(&mut ndi)};
-
-        if lookup_cstr.is_some() {
-            break;
-        }
-
-    }
-    unsafe{dataiterator_free(&mut di)};
-
-    (lookup_cstr, lookup_chksum)
-}
 
 fn updateaddedprovides(pool: &mut PoolHandle, repo: &mut RepoHandle, addwhatprovies: &mut Queue) {
     let repo_ref: &mut Repo = unsafe {&mut *repo.as_ptr()};
@@ -518,15 +435,7 @@ fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path
 
     // Search for the primary entry
 
-    let(option_cstr, option_chksum) = {
-        let mut borrow = pool_context.borrow_mut();
-        find_no_ub(&mut borrow, &repo, "primary")
-    };
-
-
-
-    let(option_cstr_2, option_chksum_2) = find_ub(&repo, "primary");
-
+    let(option_cstr, option_chksum) = find(&repo, "primary");
     let repo_md_chksum = option_chksum
         .expect("Expected primary checksum");
     let repo_md_name = option_cstr
@@ -548,13 +457,8 @@ fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path
         rd.repodataid
     };
 
-    let(option_cstr, option_chksum) = {
-        let mut borrow = pool_context.borrow_mut();
-        find_no_ub(&mut borrow, &repo, "filelists")
-    };
 
-
-    //let(option_cstr, option_chksum) = find(&repo, "filelists");
+    let(option_cstr, option_chksum) = find(&repo, "filelists");
 
     let filelists_chksum = option_chksum
         .expect("Expected checksum");
@@ -636,12 +540,12 @@ fn main() {
     }
 
     load_repo(&pool_context, "os", "/Users/abaxter/Projects/fedora-modularity/depchase/repos/rawhide/x86_64/os");
-    load_repo(&pool_context, "source", "/Users/abaxter/Projects/fedora-modularity/depchase/repos/rawhide/x86_64/sources");
+/*    load_repo(&pool_context, "source", "/Users/abaxter/Projects/fedora-modularity/depchase/repos/rawhide/x86_64/sources");
 
     {
         let mut pool = pool_context.borrow_mut();
         let solver = unsafe { solver_create(pool.as_ptr()) };
         // left off at creating solver
         unsafe { solver_free(solver) };
-    }
+    }*/
 }
