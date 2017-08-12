@@ -205,6 +205,13 @@ impl RepoHandle {
             prepend_keyname: None
         }
     }
+
+    pub fn add_repodata(&mut self) -> RepoDataHolder {
+        let rd = unsafe{&* repo_add_repodata(self.repo, 0)};
+        let repodata_id = rd.repodataid;
+        RepoDataHolder{pool: self.pool_rc.borrow_mut(), repo: self, repodata_id: repodata_id}
+
+    }
 }
 
 impl Drop for RepoHandle {
@@ -252,7 +259,7 @@ impl<'a> DataIteratorBuilder<'a> {
         let flags = self.flags.unwrap();
 
         let di = unsafe {
-            let mut di = Box::new(mem::uninitialized());
+            let mut di = Box::new(mem::zeroed());
             dataiterator_init(&mut *di, pool.as_ptr(), repo.as_ptr(), p, key, what.as_ptr(), flags);
             if let Some(prepend_keyname) = self.prepend_keyname {
                 dataiterator_prepend_keyname(&mut *di, prepend_keyname);
@@ -290,7 +297,7 @@ impl<'a> Iterator for RepoDataIterator<'a> {
             None
         } else {
             let ndi = unsafe {
-                let mut ndi = Box::new(mem::uninitialized());
+                let mut ndi = Box::new(mem::zeroed());
                 dataiterator_init_clone(&mut *ndi, &mut *self.di);
                 dataiterator_strdup(&mut *ndi);
                 ndi
@@ -365,6 +372,58 @@ impl<'a> RepoDataPos<'a> {
     }
 }
 
+pub struct RepoDataHolder<'a> {
+    pool: RefMut<'a, PoolHandle>,
+    repo: &'a RepoHandle,
+    repodata_id: Id
+}
+
+impl<'a> RepoDataHolder<'a> {
+    pub fn new_handle(self) -> RepoDataHandle<'a> {
+        let handle_id = unsafe{repodata_new_handle(self.as_ptr())};
+        RepoDataHandle{repodata: self, handle_id: handle_id}
+    }
+
+    unsafe fn as_ptr(&self) -> *mut Repodata {
+        repo_id2repodata(self.repo.as_ptr(), self.repodata_id)
+    }
+}
+
+pub struct RepoDataHandle<'a> {
+    repodata: RepoDataHolder<'a>,
+    handle_id: Id
+}
+
+impl<'a> RepoDataHandle<'a> {
+    pub fn set_poolstr<C: AsRef<CStr>>(&mut self, keyname: solv_knownid, string: C) {
+        unsafe{repodata_set_poolstr(self.repodata.as_ptr(), self.handle_id, keyname as Id, string.as_ref().as_ptr())};
+    }
+
+    pub fn set_str<C: AsRef<CStr>>(&mut self, keyname: solv_knownid, string: C) {
+        unsafe{repodata_set_str(self.repodata.as_ptr(), self.handle_id, keyname as Id, string.as_ref().as_ptr())};
+    }
+
+    pub fn set_checksum(&mut self, keyname: solv_knownid, chksum: *mut _Chksum) {
+        unsafe {
+            let chksum_buf = solv_chksum_get(chksum, ptr::null_mut());
+            let chksum_type = solv_chksum_get_type(chksum);
+            repodata_set_bin_checksum(self.repodata.as_ptr(), self.handle_id, keyname as Id, chksum_type, chksum_buf);
+        }
+    }
+
+    pub fn add_idarray(&mut self, keyname: solv_knownid, id: solv_knownid) {
+        unsafe{repodata_add_idarray(self.repodata.as_ptr(), self.handle_id, keyname as Id, id as Id)};
+    }
+
+    pub fn add_flexarray(&mut self, id: Id, keyname: solv_knownid) {
+        unsafe{repodata_add_flexarray(self.repodata.as_ptr(), id, keyname as Id, self.handle_id)};
+    }
+
+    pub fn internalize(&mut self) {
+        unsafe{repodata_internalize(self.repodata.as_ptr())};
+    }
+}
+
 fn find(repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chksum>){
     let mut lookup_cstr = None;
     let mut lookup_chksum = None;
@@ -375,15 +434,10 @@ fn find(repo: &RepoHandle, what: &str) -> (Option<CString>, Option<*mut _Chksum>
         .set_prepend_keyname(solv_knownid::REPOSITORY_REPOMD)
         .build();
 
-    println!("what: {:?}", di.what.as_ptr());
-
     for mut repo_match in &mut di {
-        println!("loop!");
         let parent_pos = repo_match.parent_pos();
         lookup_cstr = parent_pos.location();
-        println!("location: {:?}", lookup_cstr);
         lookup_chksum = parent_pos.checksum();
-        println!("chksum: {:?}", lookup_chksum);
         if lookup_cstr.is_some() {
             break;
         }
@@ -421,6 +475,30 @@ fn updateaddedprovides(pool: &mut PoolHandle, repo: &mut RepoHandle, addwhatprov
 
 }
 
+fn add_exts(repo: &mut RepoHandle) {
+    let filelists_cstr = CString::new("filelists").unwrap();
+
+    let(option_cstr, option_chksum) = find(&repo, "filelists");
+
+    let filelists_chksum = option_chksum
+        .expect("Expected checksum");
+    let filelists_name = option_cstr
+        .expect("Expected name");
+
+    let mut repomd_handle = repo.add_repodata().new_handle();
+    repomd_handle.set_poolstr(solv_knownid::REPOSITORY_REPOMD_TYPE, &filelists_cstr);
+    repomd_handle.set_str(solv_knownid::REPOSITORY_REPOMD_LOCATION, &filelists_name);
+    repomd_handle.set_checksum(solv_knownid::REPOSITORY_REPOMD_CHECKSUM, filelists_chksum);
+    //add_ext_keys
+    repomd_handle.add_idarray(solv_knownid::REPOSITORY_KEYS, solv_knownid::SOLVABLE_FILELIST);
+    repomd_handle.add_idarray(solv_knownid::REPOSITORY_KEYS, solv_knownid::REPOKEY_TYPE_DIRSTRARRAY);
+    repomd_handle.add_flexarray(SOLVID_META, solv_knownid::REPOSITORY_EXTERNAL);
+    repomd_handle.internalize();
+
+    unsafe{solv_chksum_free(filelists_chksum, ptr::null_mut())};
+
+}
+
 fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path: P) -> RepoHandle {
 
     let mut repomdstr = base_path.as_ref().to_owned();
@@ -441,6 +519,8 @@ fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path
     let repo_md_name = option_cstr
         .expect("Expected primary name");
 
+    unsafe{solv_chksum_free(repo_md_chksum, ptr::null_mut())};
+
     // Load the primary entry
     let mut repo_file_buf = PathBuf::new();
     repo_file_buf.push(base_path.as_ref());
@@ -451,37 +531,12 @@ fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path
 
     repo.add_repomd(&mut repomd_file);
 
-    // add_exts
-    let mut repodata_id = {
-        let rd = unsafe {& *repo_add_repodata(repo.as_ptr(), 0)};
-        rd.repodataid
-    };
+    add_exts(&mut repo);
 
-
-    let(option_cstr, option_chksum) = find(&repo, "filelists");
-
-    let filelists_chksum = option_chksum
-        .expect("Expected checksum");
-    let filelists_name = option_cstr
-        .expect("Expected name");
-
-    let filelists_cstr = CString::new("filelists").unwrap();
-    unsafe {
-        let repomd_handle = repodata_new_handle(repo_id2repodata(repo.as_ptr(), repodata_id));
-        repodata_set_poolstr(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, filelists_cstr.as_ptr());
-        repodata_set_str(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_REPOMD_LOCATION as Id, filelists_name.as_ptr());
-        let chksum_buf = solv_chksum_get(filelists_chksum, ptr::null_mut());
-        repodata_set_bin_checksum(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_REPOMD_CHECKSUM as Id, solv_chksum_get_type(filelists_chksum), chksum_buf);
-        repodata_add_idarray(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_KEYS as Id, solv_knownid::SOLVABLE_FILELIST as Id);
-        repodata_add_idarray(repo_id2repodata(repo.as_ptr(), repodata_id), repomd_handle, solv_knownid::REPOSITORY_KEYS as Id, solv_knownid::REPOKEY_TYPE_DIRSTRARRAY as Id);
-        repodata_add_flexarray(repo_id2repodata(repo.as_ptr(), repodata_id), SOLVID_META, solv_knownid::REPOSITORY_EXTERNAL as Id, repomd_handle);
-        repodata_internalize(repo_id2repodata(repo.as_ptr(), repodata_id));
-
-        solv_chksum_free(filelists_chksum, ptr::null_mut());
-    }
+    // Finished after add_exts for now. - 20170811
 
     // create stubs
-    unsafe {
+/*    unsafe {
         let repo_ref = unsafe{&*repo.as_ptr()};
         if repo_ref.nrepodata != 0 {
             let  data = repo_id2repodata(repo.as_ptr(), repo_ref.nrepodata - 1);
@@ -490,15 +545,16 @@ fn load_repo<P: AsRef<str>>(pool_context: &PoolContext, repo_name: P,  base_path
         if data.state != REPODATA_STUB as i32 {
             repodata_create_stubs(data);
         }
-    }
+    }*/
 
+    //callback occurs during repodata_load_stub
 
     {
         let mut borrow = pool_context.borrow_mut();
 
         //addedprovides = pool.addfileprovides_queue()
         let mut whatprovides_queue = unsafe{
-            let mut queue =  mem::uninitialized();
+            let mut queue =  mem::zeroed();
             queue_init(&mut queue);
             pool_addfileprovides_queue(borrow.as_ptr(), &mut queue, ptr::null_mut());
             queue
@@ -534,18 +590,18 @@ fn main() {
 
     {
         let mut pool = pool_context.borrow_mut();
-        pool.set_debuglevel(2);
+        pool.set_debuglevel(1);
         pool.set_loadcallback(|_| println!("loadsuccess."));
         pool.set_arch("x86_64");
     }
 
     load_repo(&pool_context, "os", "/Users/abaxter/Projects/fedora-modularity/depchase/repos/rawhide/x86_64/os");
-/*    load_repo(&pool_context, "source", "/Users/abaxter/Projects/fedora-modularity/depchase/repos/rawhide/x86_64/sources");
-
-    {
-        let mut pool = pool_context.borrow_mut();
-        let solver = unsafe { solver_create(pool.as_ptr()) };
-        // left off at creating solver
-        unsafe { solver_free(solver) };
-    }*/
+    load_repo(&pool_context, "source", "/Users/abaxter/Projects/fedora-modularity/depchase/repos/rawhide/x86_64/sources");
+    /*
+        {
+            let mut pool = pool_context.borrow_mut();
+            let solver = unsafe { solver_create(pool.as_ptr()) };
+            // left off at creating solver
+            unsafe { solver_free(solver) };
+        }*/
 }
