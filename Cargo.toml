@@ -44,3 +44,13 @@ required-features = ["tools", "rpmmd"]
 name = "reproducer"
 path = "src/bin/reproducer.rs"
 required-features = ["tools", "rpmmd"]
+
+[[bin]]
+name = "min_unsafe"
+path = "src/bin/min_unsafe.rs"
+required-features = ["rpmmd"]
+
+[[bin]]
+name = "min_iter"
+path = "src/bin/min_iter.rs"
+required-features = ["rpmmd"]
