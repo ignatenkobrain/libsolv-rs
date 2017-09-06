@@ -1,5 +1,4 @@
 extern crate libc;
-extern crate libsolv;
 extern crate libsolv_sys;
 extern crate libsolvext_sys;
 
