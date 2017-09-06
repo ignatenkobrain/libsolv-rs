@@ -133,7 +133,6 @@ unsafe fn load_repo(pool: *mut _Pool, path: &CStr) {
         solv_chksum_free(primary_chksum, ptr::null_mut());
     }
 
-    solv_chksum_free(primary_chksum, ptr::null_mut());
     repo_free(repo, 0);
 }
 
