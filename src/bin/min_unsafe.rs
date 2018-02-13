@@ -28,25 +28,31 @@ use libsolv_sys::dataiterator_setpos_parent;
 use libsolv_sys::{SOLVID_POS, pool_lookup_str, pool_lookup_bin_checksum, solv_chksum_create_from_bin};
 use libsolv_sys::solv_chksum_free;
 
+
+unsafe fn new_di(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> Dataiterator {
+    let mut di = mem::zeroed();
+    dataiterator_init(&mut di, pool, repo,
+                      SOLVID_META as Id, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, what.as_ptr(), SEARCH_STRING as Id);
+    dataiterator_prepend_keyname(&mut di, solv_knownid::REPOSITORY_REPOMD as Id);
+    di
+}
+
 unsafe fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString>, Option<*mut _Chksum>) {
     let mut lookup_cstr = None;
     let mut lookup_chksum = None;
 
     // RepoDataIterator::new
-    let mut di = {
-        let mut di = mem::zeroed();
-        dataiterator_init(&mut di, pool, repo,
-                          SOLVID_META as Id, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, what.as_ptr(), SEARCH_STRING as Id);
-        dataiterator_prepend_keyname(&mut di, solv_knownid::REPOSITORY_REPOMD as Id);
-        di
-    };
+    let mut di = new_di(pool, repo, what);
 
     // RepoDataIterator::next
     while dataiterator_step(&mut di) != 0 {
         println!("loop!");
+        println!("di: {:?}", di);
         let mut ndi = {
             let mut ndi = mem::zeroed();
             dataiterator_init_clone(&mut ndi, &mut di);
+
+            println!("ndi: {:?}", ndi);
             dataiterator_strdup(&mut ndi);
             ndi
         };

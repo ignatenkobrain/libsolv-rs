@@ -30,16 +30,16 @@ use libsolv_sys::solv_chksum_free;
 
 #[derive(Debug)]
 struct RepoDataIterator {
-    di: Dataiterator,
+    di: Box<Dataiterator>,
 }
 
 impl RepoDataIterator {
     fn new(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> RepoDataIterator {
         let mut di = unsafe {
-            let mut di = mem::zeroed();
-            dataiterator_init(&mut di, pool, repo,
+            let mut di = Box::new(mem::zeroed());
+            dataiterator_init(&mut *di, pool, repo,
                               SOLVID_META as Id, solv_knownid::REPOSITORY_REPOMD_TYPE as Id, what.as_ptr(), SEARCH_STRING as Id);
-            dataiterator_prepend_keyname(&mut di, solv_knownid::REPOSITORY_REPOMD as Id);
+            dataiterator_prepend_keyname(&mut *di, solv_knownid::REPOSITORY_REPOMD as Id);
             di
         };
         RepoDataIterator{di: di}
@@ -50,14 +50,14 @@ impl Iterator for RepoDataIterator {
     type Item = RepoDataMatch;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if unsafe {dataiterator_step(&mut self.di) } == 0 {
+        if unsafe {dataiterator_step(&mut *self.di) } == 0 {
             None
         } else {
             println!("loop!");
             let ndi = unsafe {
-                let mut ndi = mem::zeroed();
-                dataiterator_init_clone(&mut ndi, &mut self.di);
-                dataiterator_strdup(&mut ndi);
+                let mut ndi = Box::new(mem::zeroed());
+                dataiterator_init_clone(&mut *ndi, &mut *self.di);
+                dataiterator_strdup(&mut *ndi);
                 ndi
             };
             Some(RepoDataMatch{ndi: ndi})
@@ -67,20 +67,20 @@ impl Iterator for RepoDataIterator {
 
 impl Drop for RepoDataIterator {
     fn drop(&mut self) {
-        unsafe{dataiterator_free(&mut self.di)};
+        unsafe{dataiterator_free(&mut *self.di)};
     }
 }
 
 #[derive(Debug)]
 struct RepoDataMatch {
-    ndi: Dataiterator,
+    ndi: Box<Dataiterator>,
 }
 
 impl RepoDataMatch {
     fn parent_pos(&mut self) -> RepoDataPos {
         let _pool: &mut _Pool = unsafe { &mut *self.ndi.pool };
         let old_pos = _pool.pos;
-        unsafe { dataiterator_setpos_parent(&mut self.ndi) };
+        unsafe { dataiterator_setpos_parent(&mut *self.ndi) };
         let pos = _pool.pos;
         _pool.pos = old_pos;
         RepoDataPos{pos: pos}
@@ -89,7 +89,7 @@ impl RepoDataMatch {
 
 impl Drop for RepoDataMatch {
     fn drop(&mut self) {
-        unsafe{dataiterator_free(&mut self.ndi)};
+        unsafe{dataiterator_free(&mut *self.ndi)};
     }
 }
 
@@ -141,10 +141,11 @@ fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString>, Opti
 
     for mut step in RepoDataIterator::new(pool, repo, what) {
         let parent_pos = step.parent_pos();
-        let lookup_cstr = parent_pos.location();
-        let lookup_chksum = parent_pos.checksum();
+        lookup_cstr = parent_pos.location();
+        lookup_chksum = parent_pos.checksum();
 
         if lookup_cstr.is_some() {
+            println!("found");
             break;
         }
     }
