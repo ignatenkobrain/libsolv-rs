@@ -10,4 +10,4 @@ libc = "0.2"
 
 [build-dependencies]
 ctest = "0.1"
-gcc = { version = "0.3", features = ["parallel"] }
+cc = { version = "1.0", features = ["parallel"] }
