@@ -1,5 +1,5 @@
 extern crate bindgen;
-extern crate gcc;
+extern crate cc;
 extern crate pkg_config;
 
 use std::env;
@@ -10,12 +10,12 @@ fn main() {
 
     // Compile the static inline functions into an archive
     // and directs Cargo to link it
-    gcc::Config::new()
-        .file("static/queue.c")
+    cc::Build::new()
         .file("static/bitmap.c")
         .file("static/dirpool.c")
         .file("static/pool.c")
         .file("static/poolarch.c")
+        .file("static/queue.c")
         .file("static/repo.c")
         .file("static/repodata.c")
         .file("static/strpool.c")
@@ -36,33 +36,35 @@ fn main() {
 
         // Whitelist libsolv's functions, types, and variables,
         // otherwise bindgen will bind all of libc
-        .whitelisted_type("Solver")
-        .whitelisted_type("Chksum")
-        .whitelisted_type("solv.*")
-        .whitelisted_function("pool.*")
-        .whitelisted_function("stringpool.*")
-        .whitelisted_function("transaction.*")
-        .whitelisted_function("solv.*")
-        .whitelisted_function("selection.*")
-        .whitelisted_function("repopagestore.*")
-        .whitelisted_function("repo.*")
-        .whitelisted_function("queue.*")
-        .whitelisted_function("policy.*")
-        .whitelisted_function("find.*")
-        .whitelisted_function("dirpool.*")
-        .whitelisted_function("datamatcher.*")
-        .whitelisted_function("dataiterator.*")
-        .whitelisted_function("map.*")
-        .whitelisted_var("DI.*")
-        .whitelisted_var("SOLV.*")
-        .whitelisted_var("REPO.*")
-        .whitelisted_var("SEARCH.*")
-        .whitelisted_var("EVRCMP.*")
+        .whitelist_type("Solver")
+        .whitelist_type("Chksum")
+        .whitelist_type("solv.*")
+        .whitelist_function("pool.*")
+        .whitelist_function("stringpool.*")
+        .whitelist_function("transaction.*")
+        .whitelist_function("solv.*")
+        .whitelist_function("selection.*")
+        .whitelist_function("repopagestore.*")
+        .whitelist_function("repo.*")
+        .whitelist_function("queue.*")
+        .whitelist_function("policy.*")
+        .whitelist_function("find.*")
+        .whitelist_function("dirpool.*")
+        .whitelist_function("datamatcher.*")
+        .whitelist_function("dataiterator.*")
+        .whitelist_function("map.*")
+        .whitelist_var("DI.*")
+        .whitelist_var("SOLV.*")
+        .whitelist_var("REPO.*")
+        .whitelist_var("SEARCH.*")
+        .whitelist_var("EVRCMP.*")
 
         // Hide FILE from bindgen's output
         // Otherwise we get the OS's private file implementation
-        .hide_type("FILE")
+        .blacklist_type("FILE")
         .raw_line("use libc::FILE;")
+
+        .rustified_enum("solv_knownid")
 
         .generate()
         // Unwrap the Result and panic on failure.

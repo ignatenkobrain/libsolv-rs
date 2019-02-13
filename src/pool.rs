@@ -1,6 +1,6 @@
 use std::cell::{RefCell, Ref, RefMut};
 use std::rc::Rc;
-use libsolv_sys::{Pool as PoolT, _Pool, _Repodata};
+use libsolv_sys::{Pool as PoolT, s_Pool, s_Repodata};
 use ::solver::Solver;
 use ::repo::{Repo, RepoDataRef};
 use std::ffi::CString;
@@ -81,7 +81,7 @@ impl Pool {
     }
 }
 
-unsafe extern "C" fn loadcallback(_p: *mut _Pool, _rd: *mut _Repodata, _d: *mut libc::c_void) -> libc::c_int {
+unsafe extern "C" fn loadcallback(_p: *mut s_Pool, _rd: *mut s_Repodata, _d: *mut libc::c_void) -> libc::c_int {
     let cb = _d as *const LoadCallback;
     println!("Entering callback function");
     if let Some(ref function) = *cb {

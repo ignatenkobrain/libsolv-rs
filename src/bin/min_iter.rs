@@ -7,13 +7,13 @@ use std::ptr;
 use std::mem;
 use std::slice;
 
-use libsolv_sys::{_Pool, Pool, Dataiterator, Datapos};
+use libsolv_sys::{s_Pool, Pool, Dataiterator, Datapos};
 use libsolv_sys::{pool_create, pool_setdebuglevel};
 use libsolv_sys::pool_free;
 use libsolv_sys::pool_setarch;
 use libsolvext_sys::solv_xfopen;
 use libsolv_sys::Repo;
-use libsolv_sys::_Chksum;
+use libsolv_sys::s_Chksum;
 use libsolv_sys::repo_create;
 use libsolv_sys::repo_free;
 use libsolvext_sys::repo_add_repomdxml;
@@ -78,7 +78,7 @@ struct RepoDataMatch {
 
 impl RepoDataMatch {
     fn parent_pos(&mut self) -> RepoDataPos {
-        let _pool: &mut _Pool = unsafe { &mut *self.ndi.pool };
+        let _pool: &mut s_Pool = unsafe { &mut *self.ndi.pool };
         let old_pos = _pool.pos;
         unsafe { dataiterator_setpos_parent(&mut *self.ndi) };
         let pos = _pool.pos;
@@ -102,7 +102,7 @@ impl RepoDataPos {
 
     pub fn location(&self) -> Option<CString> {
         let repo: &mut Repo = unsafe {&mut *self.pos.repo};
-        let _pool: &mut _Pool = unsafe{&mut *repo.pool};
+        let _pool: &mut s_Pool = unsafe{&mut *repo.pool};
         let old_pos = _pool.pos;
         _pool.pos = self.pos;
         let cstr = unsafe {pool_lookup_str(_pool, SOLVID_POS, solv_knownid::REPOSITORY_REPOMD_LOCATION as Id)};
@@ -118,7 +118,7 @@ impl RepoDataPos {
         }
     }
 
-    pub fn checksum(&self) -> Option<*mut _Chksum> {
+    pub fn checksum(&self) -> Option<*mut s_Chksum> {
         let repo: &mut Repo = unsafe {&mut *self.pos.repo};
         let _pool: &mut _Pool = unsafe{&mut *repo.pool};
         let old_pos = _pool.pos;
@@ -135,7 +135,7 @@ impl RepoDataPos {
     }
 }
 
-fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString>, Option<*mut _Chksum>) {
+fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString>, Option<*mut s_Chksum>) {
     let mut lookup_cstr = None;
     let mut lookup_chksum = None;
 

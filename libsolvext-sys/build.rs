@@ -1,5 +1,5 @@
 extern crate bindgen;
-extern crate gcc;
+extern crate cc;
 extern crate pkg_config;
 
 use std::env;
@@ -25,80 +25,80 @@ fn main() {
         .ctypes_prefix("libc")
 
         // <solv/testcase.h>
-        .whitelisted_var("TESTCASE.*")
-        .whitelisted_function("testcase.*")
+        .whitelist_var("TESTCASE.*")
+        .whitelist_function("testcase.*")
 
         // <solv/solv_xfopen.h>
-        .whitelisted_function("solv_xfopen.*")
+        .whitelist_function("solv_xfopen.*")
 
         // <solv/pool_fileconflicts.h>
-        .whitelisted_var("FINDFILECONFLICTS.*")
-        .whitelisted_function("pool_findfileconflicts")
+        .whitelist_var("FINDFILECONFLICTS.*")
+        .whitelist_function("pool_findfileconflicts")
 
         // <solv/repo_rpmdb.h>
         // TODO: VARS
-        .whitelisted_function("repo_add_rpm.*")
-        .whitelisted_function("rpm_state_.*")
-        .whitelisted_function("rpm_installedrpmdbids")
-        .whitelisted_function("rpm_by.*")
-        .whitelisted_function("rpm_query.*")
-        .whitelisted_function("rpm_iterate_filelist")
+        .whitelist_function("repo_add_rpm.*")
+        .whitelist_function("rpm_state_.*")
+        .whitelist_function("rpm_installedrpmdbids")
+        .whitelist_function("rpm_by.*")
+        .whitelist_function("rpm_query.*")
+        .whitelist_function("rpm_iterate_filelist")
 
         // <solv/repo_repomdxml.h>
-        .whitelisted_function("repo_add_repo.*")
+        .whitelist_function("repo_add_repo.*")
         // <solv/repo_rpmmd.h>
-        .whitelisted_function("repo_add_rpm.*")
+        .whitelist_function("repo_add_rpm.*")
         // <solv/repo_deltainfoxml.h>
-        .whitelisted_function("repo_add_delta.*")
+        .whitelist_function("repo_add_delta.*")
         // <solv/repo_updateinfoxml.h>
-        .whitelisted_function("repo_add_update.*")
+        .whitelist_function("repo_add_update.*")
 
         // Don't let bindgen recreate libsolv's types
-        .hide_type("Chksum")
-        .hide_type("DUChanges")
-        .hide_type("Dataiterator")
-        .hide_type("Datamatcher")
-        .hide_type("_Datapos")
-        .hide_type("Datapos")
-        .hide_type("_Dirpool")
-        .hide_type("Dirpool")
-        .hide_type("Hashtable")
-        .hide_type("Hashval")
-        .hide_type("Id")
-        .hide_type("KeyValue")
-        .hide_type("_Map")
-        .hide_type("Map")
-        .hide_type("Offset")
-        .hide_type("_Pool")
-        .hide_type("Pool")
-        .hide_type("_Queue")
-        .hide_type("Queue")
-        .hide_type("_Reldep")
-        .hide_type("Reldep")
-        .hide_type("_Repo")
-        .hide_type("Repo")
-        .hide_type("_Repodata")
-        .hide_type("Repodata")
-        .hide_type("_Repokey")
-        .hide_type("Repokey")
-        .hide_type("Rule")
-        .hide_type("_Solvable")
-        .hide_type("Solvable")
-        .hide_type("_Solver")
-        .hide_type("Solver")
-        .hide_type("_Stringpool")
-        .hide_type("Stringpool")
-        .hide_type("Transaction")
+        .blacklist_type("Chksum")
+        .blacklist_type("DUChanges")
+        .blacklist_type("Dataiterator")
+        .blacklist_type("Datamatcher")
+        .blacklist_type("s_Datapos")
+        .blacklist_type("Datapos")
+        .blacklist_type("s_Dirpool")
+        .blacklist_type("Dirpool")
+        .blacklist_type("Hashtable")
+        .blacklist_type("Hashval")
+        .blacklist_type("Id")
+        .blacklist_type("KeyValue")
+        .blacklist_type("s_Map")
+        .blacklist_type("Map")
+        .blacklist_type("Offset")
+        .blacklist_type("s_Pool")
+        .blacklist_type("Pool")
+        .blacklist_type("s_Queue")
+        .blacklist_type("Queue")
+        .blacklist_type("s_Reldep")
+        .blacklist_type("Reldep")
+        .blacklist_type("s_Repo")
+        .blacklist_type("Repo")
+        .blacklist_type("s_Repodata")
+        .blacklist_type("Repodata")
+        .blacklist_type("s_Repokey")
+        .blacklist_type("Repokey")
+        .blacklist_type("Rule")
+        .blacklist_type("s_Solvable")
+        .blacklist_type("Solvable")
+        .blacklist_type("s_Solver")
+        .blacklist_type("Solver")
+        .blacklist_type("s_Stringpool")
+        .blacklist_type("Stringpool")
+        .blacklist_type("Transaction")
 
         // Hide FILE from bindgen's output
         // Otherwise we get the OS's private file implementation
-        .hide_type("FILE")
+        .blacklist_type("FILE")
         .raw_line("use libc::FILE;")
 
         // Import necessary structs from libsolv_sys
         .raw_line("use libsolv_sys::{Chksum, DUChanges, Dataiterator, Datamatcher, Datapos, Dirpool};")
         .raw_line("use libsolv_sys::{Hashtable, Hashval, Id, KeyValue, Map, Offset, Pool, Queue};")
-        .raw_line("use libsolv_sys::{Reldep, _Repo, Repo, Repodata, Repokey, Rule, Solvable, Solver, Stringpool};")
+        .raw_line("use libsolv_sys::{Reldep, Repo, s_Repo, Repodata, Repokey, Rule, Solvable, Solver, Stringpool};")
         .raw_line("use libsolv_sys::{Transaction};")
 
         .generate()
