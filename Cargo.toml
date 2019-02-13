@@ -6,4 +6,51 @@ authors = ["Igor Gnatenko <ignatenko@redhat.com>"]
 [workspace]
 members = ["systest"]
 
+
+[features]
+default = ["tools", "rpmdb", "rpmmd"]
+ext = ["libsolvext-sys"]
+tools = ["ext", "clap"]
+rpmdb = ["ext"]
+pubkey = ["ext"]
+rpmmd = ["ext"]
+suse = ["ext"]
+comps = ["ext"]
+debian = ["ext"]
+helix = ["ext"]
+arch = ["ext"]
+haiku = ["ext"]
+appdata = ["ext"]
+
+
 [dependencies]
+libsolv-sys = { path = "libsolv-sys" }
+libsolvext-sys = { path = "libsolvext-sys", optional = true}
+libc = "0.2"
+error-chain = "0.12"
+clap = {version = "2", optional = true}
+
+[[bin]]
+name = "testsolv"
+path = "src/bin/testsolv.rs"
+required-features = ["tools", "ext"]
+
+[[bin]]
+name = "depchase"
+path = "src/bin/depchase.rs"
+required-features = ["tools", "rpmmd"]
+
+[[bin]]
+name = "reproducer"
+path = "src/bin/reproducer.rs"
+required-features = ["tools", "rpmmd"]
+
+[[bin]]
+name = "min_unsafe"
+path = "src/bin/min_unsafe.rs"
+required-features = ["rpmmd"]
+
+[[bin]]
+name = "min_iter"
+path = "src/bin/min_iter.rs"
+required-features = ["rpmmd"]

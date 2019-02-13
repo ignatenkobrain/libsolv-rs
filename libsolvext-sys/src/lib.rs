@@ -3,7 +3,6 @@
 #![allow(non_snake_case)]
 
 extern crate libc;
-
-pub mod export;
+extern crate libsolv_sys;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
