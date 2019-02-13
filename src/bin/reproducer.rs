@@ -16,13 +16,13 @@ use std::rc::Rc;
 
 use libc::FILE;
 
-use libsolv_sys::{_Pool, Pool, Dataiterator};
+use libsolv_sys::{s_Pool, Pool, Dataiterator};
 use libsolv_sys::{pool_create, pool_setdebuglevel, pool_setloadcallback};
 use libsolv_sys::pool_free;
 use libsolv_sys::pool_setarch;
 use libsolvext_sys::solv_xfopen_fd;
 use libsolv_sys::Repo;
-use libsolv_sys::_Chksum;
+use libsolv_sys::s_Chksum;
 use libsolv_sys::repo_create;
 use libsolv_sys::repo_free;
 use libsolvext_sys::{repo_add_repomdxml, repo_add_rpmmd, repo_add_repodata};
@@ -50,7 +50,7 @@ use libsolv_sys::repodata_create_stubs;
 use libsolv_sys::pool_addfileprovides_queue;
 use libsolv_sys::queue_init;
 use libsolv_sys::Queue;
-use libsolv_sys::{_Repodata, Repodata};
+use libsolv_sys::{s_Repodata, Repodata};
 use libsolv_sys::pool_createwhatprovides;
 use libsolv_sys::queue_free;
 use libsolv_sys::solver_create;

@@ -177,8 +177,8 @@ impl<'a> DataMatch<'a> {
 
 impl<'a> Display for DataMatch<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        use libsolv_sys::{repodata_stringify, SEARCH_FILES, SEARCH_CHECKSUMS, _KeyValue};
-        let kv = &self._ndi.kv as *const _KeyValue as *mut _KeyValue;
+        use libsolv_sys::{repodata_stringify, SEARCH_FILES, SEARCH_CHECKSUMS, s_KeyValue};
+        let kv = &self._ndi.kv as *const s_KeyValue as *mut s_KeyValue;
         let string = unsafe{repodata_stringify(self._ndi.pool, self._ndi.data, self._ndi.key, kv, (SEARCH_FILES | SEARCH_CHECKSUMS) as i32)};
         let cstr = unsafe{CStr::from_ptr(string)};
         write!(f, "{:?}", cstr)

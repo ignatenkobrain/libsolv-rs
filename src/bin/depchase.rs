@@ -1,5 +1,5 @@
-extern crate libc;
-extern crate libsolv;
+
+use libsolv;
 
 #[macro_use]
 extern crate clap;
@@ -18,7 +18,7 @@ use std::io::{Cursor, Read};
 use libsolv::chksum::Chksum;
 use libsolv::ext::solvfile::*;
 use libsolv::ext::rpmmd::*;
-use libsolv::sys::{_Pool, _Repodata, _Repo};
+use libsolv::sys::{s_Pool, s_Repodata, s_Repo};
 use libsolv::errors::*;
 use libsolv::{solv_knownid, Id};
 

@@ -19,13 +19,14 @@ pub mod errors {
     }
 }
 
-pub mod queue;
+pub mod chksum;
 pub mod pool;
+pub mod queue;
 pub mod repo;
 pub mod solver;
-pub mod transaction;
-pub mod chksum;
 pub mod sys;
+pub mod transaction;
+
 mod ownership;
 
 pub use libsolv_sys::{solv_knownid, Id};

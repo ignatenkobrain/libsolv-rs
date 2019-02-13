@@ -1,1 +1,1 @@
-pub use libsolv_sys::{_Pool, _Repo, _Repodata, Id};
+pub use libsolv_sys::{s_Pool, s_Repo, s_Repodata, Id};

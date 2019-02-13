@@ -11,11 +11,11 @@ fn main() {
     // Compile the static inline functions into an archive
     // and directs Cargo to link it
     cc::Build::new()
-        .file("static/queue.c")
         .file("static/bitmap.c")
         .file("static/dirpool.c")
         .file("static/pool.c")
         .file("static/poolarch.c")
+        .file("static/queue.c")
         .file("static/repo.c")
         .file("static/repodata.c")
         .file("static/strpool.c")
@@ -63,6 +63,8 @@ fn main() {
         // Otherwise we get the OS's private file implementation
         .blacklist_type("FILE")
         .raw_line("use libc::FILE;")
+
+        .rustified_enum("solv_knownid")
 
         .generate()
         // Unwrap the Result and panic on failure.

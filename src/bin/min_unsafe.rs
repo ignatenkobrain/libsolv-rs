@@ -7,13 +7,13 @@ use std::ptr;
 use std::mem;
 use std::slice;
 
-use libsolv_sys::{_Pool, Pool, Dataiterator};
+use libsolv_sys::{s_Pool, Pool, Dataiterator};
 use libsolv_sys::{pool_create, pool_setdebuglevel};
 use libsolv_sys::pool_free;
 use libsolv_sys::pool_setarch;
 use libsolvext_sys::solv_xfopen;
 use libsolv_sys::Repo;
-use libsolv_sys::_Chksum;
+use libsolv_sys::s_Chksum;
 use libsolv_sys::repo_create;
 use libsolv_sys::repo_free;
 use libsolvext_sys::repo_add_repomdxml;
@@ -37,7 +37,7 @@ unsafe fn new_di(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> Dataiterator 
     di
 }
 
-unsafe fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString>, Option<*mut _Chksum>) {
+unsafe fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString>, Option<*mut s_Chksum>) {
     let mut lookup_cstr = None;
     let mut lookup_chksum = None;
 
@@ -59,7 +59,7 @@ unsafe fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString
 
         // RepoDataMatch::parent_pos
         let pos = {
-            let _pool: &mut _Pool =  &mut *ndi.pool;
+            let _pool: &mut s_Pool =  &mut *ndi.pool;
             let old_pos = _pool.pos;
             dataiterator_setpos_parent(&mut ndi);
             let pos = _pool.pos;
@@ -70,7 +70,7 @@ unsafe fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString
         // RepoDataPos::location
         lookup_cstr = {
             let repo: &mut Repo = &mut *pos.repo;
-            let _pool: &mut _Pool = &mut *repo.pool;
+            let _pool: &mut s_Pool = &mut *repo.pool;
             let old_pos = _pool.pos;
             _pool.pos = pos;
             let cstr = pool_lookup_str(_pool, SOLVID_POS, solv_knownid::REPOSITORY_REPOMD_LOCATION as Id);
@@ -87,7 +87,7 @@ unsafe fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString
         // RepoDataPos::checksum
         lookup_chksum = {
             let repo: &mut Repo = &mut *pos.repo;
-            let _pool: &mut _Pool = &mut *repo.pool;
+            let _pool: &mut s_Pool = &mut *repo.pool;
             let old_pos = _pool.pos;
             _pool.pos = pos;
             let mut type_id = 0;
@@ -116,7 +116,7 @@ unsafe fn find(pool: *mut Pool, repo: *mut Repo, what: &CStr) -> (Option<CString
     (lookup_cstr, lookup_chksum)
 }
 
-unsafe fn load_repo(pool: *mut _Pool, path: &CStr) {
+unsafe fn load_repo(pool: *mut s_Pool, path: &CStr) {
     let readonly = CString::new("r").unwrap();
     let repomd_fp = solv_xfopen(path.as_ptr(), readonly.as_ptr());
     assert!(!repomd_fp.is_null());
